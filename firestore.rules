@@ -1,0 +1,302 @@
+/*
+ * FrontRow Platform / Road Crew Engagement Program
+ * Copyright © 2026 Hallowfield Building Group, LLC.
+ * All rights reserved.
+ *
+ * Endless Detour name, logo, and band-specific branding are separate marks
+ * owned by their respective rights holders and used by permission.
+ */
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    function isReferralPointAward() {
+      return signedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['totalPoints', 'lifetimePoints', 'leaderboardTitle'])
+        && request.resource.data.totalPoints == resource.data.totalPoints + 15
+        && request.resource.data.lifetimePoints == resource.data.get('lifetimePoints', resource.data.totalPoints) + 15;
+    }
+
+    function isOwnerSafeUpdate(userId) {
+      return isOwner(userId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'displayName',
+          'leaderboardOptOut',
+          'totalPoints',
+          'lifetimePoints',
+          'totalCheckIns',
+          'rewardTier',
+          'leaderboardTitle',
+          'updatedAt'
+        ])
+        && request.resource.data.isAdmin == resource.data.isAdmin
+        && request.resource.data.foundingMember == resource.data.foundingMember;
+    }
+
+    function isValidVerificationRequest() {
+      return request.resource.data.requestType == 'verification'
+        && request.resource.data.status == 'pending'
+        && (
+          (request.resource.data.actionType == 'facebook' && request.resource.data.milemarkers == 50)
+          || (request.resource.data.actionType == 'instagram' && request.resource.data.milemarkers == 25)
+          || (
+            request.resource.data.actionType == 'tip'
+            && request.resource.data.milemarkers == request.resource.data.amount
+            && request.resource.data.milemarkers > 0
+          )
+        );
+    }
+
+    function isValidCheckInWindow(eventId) {
+      return exists(/databases/$(database)/documents/events/$(eventId))
+        && get(/databases/$(database)/documents/events/$(eventId)).data.checkInOpensAt is timestamp
+        && get(/databases/$(database)/documents/events/$(eventId)).data.checkInClosesAt is timestamp
+        && request.time >= get(/databases/$(database)/documents/events/$(eventId)).data.checkInOpensAt
+        && request.time <= get(/databases/$(database)/documents/events/$(eventId)).data.checkInClosesAt;
+    }
+
+    function hasValidCheckInProof(eventId) {
+      return request.resource.data.method == 'geolocation'
+        || (
+          request.resource.data.method == 'code'
+          && exists(/databases/$(database)/documents/eventSecrets/$(eventId))
+          && request.resource.data.eventCodeHash == get(/databases/$(database)/documents/eventSecrets/$(eventId)).data.codeHash
+        );
+    }
+
+    function isValidRoadCrewProfileWrite(userId) {
+      return isOwner(userId)
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'userId',
+          'displayName',
+          'email',
+          'lifetimeMilemarkers',
+          'totalMilemarkers',
+          'totalCheckIns',
+          'currentStatusId',
+          'currentStatusName',
+          'leaderboardOptOut',
+          'foundingMember',
+          'foundingMemberNumber',
+          'platformId',
+          'programId',
+          'communityId',
+          'artistId',
+          'artistName',
+          'enrolledAt',
+          'migrationSource',
+          'migratedAt',
+          'createdAt',
+          'updatedAt'
+        ]);
+    }
+
+    function isValidOwnLedgerCreate() {
+      return signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status == 'posted'
+        && request.resource.data.milemarkers is number
+        && request.resource.data.milemarkers > 0
+        && request.resource.data.type in [
+          'account',
+          'check_in',
+          'song_request',
+          'poll_participation',
+          'poll_prediction_bonus',
+          'referral_signup'
+        ];
+    }
+
+    match /users/{userId} {
+      allow read: if signedIn();
+      allow create: if isOwner(userId) && request.resource.data.isAdmin == false;
+      allow update: if isOwnerSafeUpdate(userId) || isAdmin() || isReferralPointAward();
+      allow delete: if isAdmin();
+    }
+
+    match /events/{eventId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /communities/{communityId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /artists/{artistId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /venues/{venueId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /follows/{followId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.entityType in ['artist', 'venue'];
+      allow delete: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow update: if false;
+    }
+
+    match /roadCrewProfiles/{userId} {
+      allow read: if signedIn();
+      allow create: if isAdmin() || isOwner(userId);
+      allow update: if isAdmin() || isValidRoadCrewProfileWrite(userId);
+      allow delete: if isAdmin();
+    }
+
+    match /milemarkerLedger/{ledgerId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isAdmin() || isValidOwnLedgerCreate();
+      allow update, delete: if isAdmin();
+    }
+
+    match /achievementDefinitions/{achievementId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /userAchievements/{achievementId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /roleAssignments/{assignmentId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow write: if isAdmin();
+    }
+
+    match /eventSecrets/{eventId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /eventInterest/{interestId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.eventId is string
+        && request.resource.data.status == 'interested';
+      allow update: if (
+        signedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid
+      ) || isAdmin();
+      allow delete: if (signedIn() && resource.data.userId == request.auth.uid) || isAdmin();
+    }
+
+    match /announcements/{announcementId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isAdmin();
+      allow update: if isAdmin()
+        || (
+          signedIn()
+          && resource.data.userId == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt'])
+        );
+      allow delete: if isAdmin();
+    }
+
+    match /polls/{pollId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /pollVotes/{voteId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    match /checkIns/{checkInId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && checkInId == request.resource.data.eventId + '_' + request.auth.uid
+        && request.resource.data.points == 25
+        && request.resource.data.method in ['code', 'geolocation']
+        && request.resource.data.createdAt == request.time
+        && isValidCheckInWindow(request.resource.data.eventId)
+        && hasValidCheckInProof(request.resource.data.eventId);
+      allow update, delete: if isAdmin();
+    }
+
+    match /songRequests/{requestId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    match /referrals/{referralId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.newUserId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    match /rewards/{rewardId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    match /rewardCatalog/{rewardId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /actionClaims/{claimId} {
+      allow read: if signedIn();
+      allow create: if isAdmin()
+        || (
+          signedIn()
+          && request.resource.data.userId == request.auth.uid
+          && (
+            (
+              isValidVerificationRequest()
+            )
+            || (
+              request.resource.data.actionType == 'account'
+              && request.resource.data.status == 'approved'
+              && request.resource.data.milemarkers == 25
+            )
+          )
+        );
+      allow update, delete: if isAdmin();
+    }
+
+    match /manualBonuses/{bonusId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /tips/{tipId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}

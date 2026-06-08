@@ -1,0 +1,127 @@
+:root {
+  --frontrow-gold: #f6c84a;
+  --frontrow-purple: #7c3aed;
+}
+
+.frontrow-brand-anchor {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.frontrow-brand-anchor img {
+  display: block;
+  width: min(230px, 48vw);
+  max-height: 54px;
+  object-fit: cover;
+  object-position: left center;
+  border-radius: 0;
+}
+
+.frontrow-home-hero,
+.frontrow-auth-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid rgba(246, 200, 74, 0.28);
+  background:
+    linear-gradient(90deg, rgba(5, 4, 13, 0.98) 0%, rgba(5, 4, 13, 0.8) 48%, rgba(5, 4, 13, 0.18) 100%),
+    url("/assets/brand/frontrow-rockstar-hero.jpg") center / cover no-repeat;
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.36);
+}
+
+.frontrow-platform-intro {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 10px;
+  max-width: 610px;
+  padding: clamp(24px, 6vw, 54px) clamp(18px, 5vw, 48px);
+}
+
+.frontrow-platform-intro img {
+  width: min(520px, 100%);
+  height: auto;
+  border-radius: 0;
+}
+
+.frontrow-platform-intro p {
+  max-width: 540px;
+  margin: 0;
+  color: #fff;
+  font-size: clamp(1rem, 2.4vw, 1.28rem);
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.frontrow-platform-intro strong {
+  color: var(--frontrow-gold);
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.frontrow-auth-hero {
+  min-height: 250px;
+  margin-bottom: 16px;
+}
+
+.frontrow-value-grid,
+.frontrow-fan-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.frontrow-value-grid span,
+.frontrow-fan-strip span {
+  padding: 11px 12px;
+  border-left: 2px solid var(--frontrow-gold);
+  background: rgba(8, 6, 18, 0.78);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.frontrow-fan-strip {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 0;
+  border: 1px solid rgba(246, 200, 74, 0.22);
+}
+
+.frontrow-fan-strip span {
+  border-left: 0;
+  text-align: center;
+  text-transform: none;
+}
+
+.primary-button {
+  border-color: #d99b16 !important;
+  background: var(--frontrow-gold) !important;
+  color: #110d05 !important;
+}
+
+@media (max-width: 680px) {
+  .frontrow-brand-anchor img {
+    width: min(188px, 46vw);
+    max-height: 45px;
+  }
+
+  .frontrow-home-hero,
+  .frontrow-auth-hero {
+    background-position: 62% center;
+  }
+
+  .frontrow-platform-intro {
+    padding: 24px 16px;
+    background: linear-gradient(90deg, rgba(5, 4, 13, 0.96), rgba(5, 4, 13, 0.66));
+  }
+
+  .frontrow-value-grid,
+  .frontrow-fan-strip {
+    grid-template-columns: 1fr 1fr;
+  }
+}

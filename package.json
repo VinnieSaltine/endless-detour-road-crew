@@ -1,0 +1,20 @@
+{
+  "name": "frontrow",
+  "version": "1.4.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npx firebase-tools emulators:start --only hosting",
+    "build": "node scripts/build.mjs",
+    "deploy": "npx firebase-tools deploy --only hosting,firestore:rules,firestore:indexes",
+    "deploy:functions": "npx firebase-tools deploy --only functions",
+    "migrate:frontrow": "node scripts/migrate-frontrow.mjs",
+    "migrate:frontrow:apply": "node scripts/migrate-frontrow.mjs --apply",
+    "deploy:hosting": "npx firebase-tools deploy --only hosting",
+    "preview": "npx firebase-tools hosting:channel:deploy preview"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "firebase-admin": "^12.0.0"
+  }
+}
