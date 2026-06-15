@@ -602,8 +602,7 @@ a {
   font-size: 0.74rem;
 }
 
-.artist-meta-grid,
-.song-stat-grid {
+.artist-meta-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
@@ -656,7 +655,7 @@ a {
 
 .song-catalog-accordion > p,
 .song-catalog-accordion .song-library-controls,
-.song-catalog-accordion .song-card-list,
+.song-catalog-accordion .song-table-wrap,
 .song-catalog-accordion .archive-note {
   margin-top: 14px;
 }
@@ -673,63 +672,73 @@ a {
   gap: 10px;
 }
 
-.song-card-list {
-  display: grid;
-  gap: 10px;
-}
-
-.song-card {
-  display: grid;
-  gap: 12px;
-  padding: 13px;
+.song-table-wrap {
+  overflow-x: auto;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(9, 9, 11, 0.72);
+  background: rgba(5, 5, 5, 0.48);
+  -webkit-overflow-scrolling: touch;
 }
 
-.song-card h3,
-.song-card p {
-  margin: 0;
+.song-table {
+  width: 100%;
+  min-width: 920px;
+  border-collapse: collapse;
+  font-size: 0.82rem;
 }
 
-.song-card h3 {
-  font-size: 1.1rem;
+.song-table th,
+.song-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
 }
 
-.song-card-main p,
-.song-notes {
-  color: var(--muted);
-}
-
-.song-stat-grid {
-  margin-top: 0;
-}
-
-.song-stat-grid span {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-  padding: 9px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.song-stat-grid small {
-  color: var(--muted);
-  font-size: 0.66rem;
-  font-weight: 800;
+.song-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #111113;
+  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 
-.song-stat-grid strong {
-  overflow-wrap: anywhere;
+.song-table tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.025);
 }
 
-.song-notes {
-  padding-top: 10px;
-  border-top: 1px solid var(--line);
-  font-size: 0.9rem;
+.song-table tbody tr:hover {
+  background: rgba(242, 211, 79, 0.06);
+}
+
+.song-table td:first-child,
+.song-table th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  max-width: 190px;
+  background: #101012;
+}
+
+.song-table th:first-child {
+  z-index: 3;
+}
+
+.song-table td:first-child strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.song-table .status-pill {
+  margin-bottom: 0;
+  padding: 3px 7px;
+  font-size: 0.62rem;
 }
 
 .archive-note {

@@ -858,7 +858,7 @@ function ArtistDetailPage({ id, artists, events, songLibrary, authUser, profile,
           <label>Search songs<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, original artist, genre..." /></label>
           <label>Status<select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option>All</option>{SONG_STATUSES.map((status) => <option key={status}>{status}</option>)}</select></label>
         </div>
-        <div className="song-card-list">{visibleSongs.length ? visibleSongs.map((song) => <SongCard key={song.id} song={song} />) : <p className="muted">No songs match that search.</p>}</div>
+        <SongCatalogTable songs={visibleSongs} />
         <div className="archive-note"><strong>Setlist Archive</strong><span>Coming later: searchable performances, setlists used, frequently played songs, and venue history.</span></div>
       </details>
     </section>
@@ -906,25 +906,34 @@ function ArtistFanEngagement({ artist, artistEvents, authUser, profile, follows,
   );
 }
 
-function SongCard({ song }) {
+function SongCatalogTable({ songs }) {
+  if (!songs.length) return <p className="muted">No songs match that search.</p>;
   return (
-    <article className="song-card">
-      <div className="song-card-main">
-        <span className={classNames("status-pill", song.status === "Retired" && "muted-pill", song.status === "Learning" && "learning-pill")}>{song.status || "Active"}</span>
-        <h3>{song.title}</h3>
-        <p>{song.originalArtist}</p>
-      </div>
-      <div className="song-stat-grid">
-        <span><small>Duration</small><strong>{song.duration || "TBD"}</strong></span>
-        <span><small>Key</small><strong>{song.key || "TBD"}</strong></span>
-        <span><small>Lead</small><strong>{song.leadVocal || "TBD"}</strong></span>
-        <span><small>Harmony</small><strong>{song.harmonyVocal || "TBD"}</strong></span>
-        <span><small>Genre</small><strong>{song.genre || "TBD"}</strong></span>
-        <span><small>Decade</small><strong>{song.decade || "TBD"}</strong></span>
-        <span><small>Energy</small><strong>{song.energyLevel || 0}/5</strong></span>
-      </div>
-      {song.notes && <p className="song-notes">{song.notes}</p>}
-    </article>
+    <div className="song-table-wrap" role="region" aria-label="Song catalog table" tabIndex="0">
+      <table className="song-table">
+        <thead>
+          <tr>
+            {["Song", "Original Artist", "Duration", "Key", "Lead", "Harmony", "Genre", "Decade", "Energy", "Status"].map((heading) => <th key={heading}>{heading}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {songs.map((song) => (
+            <tr key={song.id}>
+              <td data-label="Song"><strong>{song.title}</strong></td>
+              <td data-label="Original Artist">{song.originalArtist || "TBD"}</td>
+              <td data-label="Duration">{song.duration || "TBD"}</td>
+              <td data-label="Key">{song.key || "TBD"}</td>
+              <td data-label="Lead">{song.leadVocal || "TBD"}</td>
+              <td data-label="Harmony">{song.harmonyVocal || "TBD"}</td>
+              <td data-label="Genre">{song.genre || "TBD"}</td>
+              <td data-label="Decade">{song.decade || "TBD"}</td>
+              <td data-label="Energy">{song.energyLevel || 0}/5</td>
+              <td data-label="Status"><span className={classNames("status-pill", song.status === "Retired" && "muted-pill", song.status === "Learning" && "learning-pill")}>{song.status || "Active"}</span></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
