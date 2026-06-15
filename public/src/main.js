@@ -1125,7 +1125,7 @@ function csvCell(value) {
 }
 
 function downloadCsv(filename, rows) {
-  const csv = rows.map((row) => row.map(csvCell).join(",")).join("\n");
+  const csv = `\uFEFF${rows.map((row) => row.map(csvCell).join(",")).join("\n")}`;
   const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
   const link = document.createElement("a");
   link.href = url;
@@ -1168,13 +1168,15 @@ function parseCsv(text) {
 function buildSongImportPreview(text, existingSongs) {
   const rows = parseCsv(text);
   if (!rows.length) return { headerError: "CSV is empty.", rows: [], validRows: [], invalidRows: [], duplicateRows: [] };
-  const headers = rows[0].map((header) => header.trim());
+  const headerRowIndex = findSongCsvHeaderRow(rows);
+  if (headerRowIndex < 0) return { headerError: `Could not find the required header row. Required headers: ${SONG_CSV_HEADERS.join(", ")}.`, rows: [], validRows: [], invalidRows: [], duplicateRows: [] };
+  const headers = rows[headerRowIndex].map(normalizeCsvHeader);
   const headerError = validateSongCsvHeaders(headers);
   if (headerError) return { headerError, rows: [], validRows: [], invalidRows: [], duplicateRows: [] };
   const headerIndex = Object.fromEntries(headers.map((header, index) => [header, index]));
   const existingByKey = new Map(existingSongs.map((song) => [songDuplicateKey(song.title, song.originalArtist), song]));
   const seenKeys = new Set();
-  const previewRows = rows.slice(1).map((values, index) => {
+  const previewRows = rows.slice(headerRowIndex + 1).map((values, index) => {
     const data = Object.fromEntries(SONG_CSV_HEADERS.map((header) => [header, values[headerIndex[header]]?.trim() || ""]));
     const energy = Number(data["Energy Level"] || 0);
     const status = data.Status || "Active";
@@ -1201,7 +1203,7 @@ function buildSongImportPreview(text, existingSongs) {
     const duplicate = Boolean(existingByKey.has(key));
     const existing = existingByKey.get(key);
     if (key) seenKeys.add(key);
-    return { rowNumber: index + 2, song, errors, duplicate, existingId: existing?.id || "" };
+    return { rowNumber: headerRowIndex + index + 2, song, errors, duplicate, existingId: existing?.id || "" };
   });
   return {
     headerError: "",
@@ -1217,6 +1219,17 @@ function validateSongCsvHeaders(headers) {
   const extra = headers.filter((header) => !SONG_CSV_HEADERS.includes(header));
   if (missing.length || extra.length) return `Required headers: ${SONG_CSV_HEADERS.join(", ")}. Missing: ${missing.join(", ") || "none"}. Extra: ${extra.join(", ") || "none"}.`;
   return "";
+}
+
+function findSongCsvHeaderRow(rows) {
+  return rows.findIndex((row) => {
+    const headers = row.map(normalizeCsvHeader);
+    return SONG_CSV_HEADERS.every((requiredHeader) => headers.includes(requiredHeader));
+  });
+}
+
+function normalizeCsvHeader(header) {
+  return String(header || "").replace(/^\uFEFF/, "").trim();
 }
 
 function songDuplicateKey(title, originalArtist) {
