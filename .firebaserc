@@ -1,5 +1,6 @@
 {
   "projects": {
-    "default": "endless-detour-road-crew"
+    "default": "front-row-app-b2096",
+    "legacyEndlessDetour": "endless-detour-road-crew"
   }
 }

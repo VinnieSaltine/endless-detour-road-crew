@@ -592,6 +592,7 @@ function App() {
   const actionClaims = useCollection("actionClaims", []);
   const notifications = useUserCollection("notifications", authUser?.uid || "");
   const follows = useUserCollection("follows", authUser?.uid || "");
+  const roleAssignments = useUserCollection("roleAssignments", authUser?.uid || "");
   const eventInterest = useCollection("eventInterest", [], authUser?.uid || "");
   const eventSecrets = useCollection("eventSecrets", [], profile?.isAdmin ? authUser?.uid || "" : "");
 
@@ -651,6 +652,7 @@ function App() {
     venues,
     songLibrary,
     follows,
+    roleAssignments,
     polls,
     announcements: [...announcements].filter((item) => item.published !== false).sort((a, b) => String(b.createdAt || b.date).localeCompare(String(a.createdAt || a.date))),
     allAnnouncements: [...announcements].sort((a, b) => String(b.createdAt || b.date).localeCompare(String(a.createdAt || a.date))),
@@ -807,7 +809,7 @@ function ArtistsPage({ artists, events, songLibrary, authUser, follows, setToast
   );
 }
 
-function ArtistDetailPage({ id, artists, events, songLibrary, authUser, profile, follows, rewards, checkIns, setToast }) {
+function ArtistDetailPage({ id, artists, events, songLibrary, authUser, profile, follows, roleAssignments, rewards, checkIns, setToast }) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [songDraft, setSongDraft] = useState(null);
@@ -815,7 +817,7 @@ function ArtistDetailPage({ id, artists, events, songLibrary, authUser, profile,
   const [overwriteDuplicates, setOverwriteDuplicates] = useState(false);
   const artist = artists.find((item) => item.id === id);
   if (!artist) return <EmptyState title="Artist not found" body="That artist is not available in FrontRow yet." />;
-  const canManageSongs = Boolean(profile?.isAdmin);
+  const canManageSongs = canManageArtistCatalog(profile, roleAssignments, artist.id);
   const artistEvents = events.filter((event) => (event.artistId || APP_CONFIG.primaryArtistId) === artist.id);
   const upcomingEvents = artistEvents.filter(isUpcoming).slice(0, 4);
   const allSongs = songsForArtist(songLibrary, artist.id);
@@ -903,23 +905,28 @@ function ArtistDetailPage({ id, artists, events, songLibrary, authUser, profile,
     if (!songImport || songImport.headerError) return;
     const rowsToSave = songImport.validRows.filter((row) => overwriteDuplicates || !row.duplicate);
     if (!rowsToSave.length) return setToast("No importable rows selected.");
-    const batch = db.batch();
-    rowsToSave.forEach((row) => {
-      const id = row.existingId || `${artist.id}-${slugify(row.song.title)}-${Date.now()}-${row.rowNumber}`;
-      batch.set(db.collection("songLibrary").doc(id), {
-        id,
-        platformId: FRONTROW_PLATFORM_ID,
-        artistId: artist.id,
-        artistName: artist.name,
-        ...row.song,
-        updatedAt: FieldValue.serverTimestamp(),
-        ...(row.existingId ? {} : { createdAt: FieldValue.serverTimestamp() }),
-      }, { merge: true });
-    });
-    await batch.commit();
-    const skipped = songImport.validRows.filter((row) => row.duplicate && !overwriteDuplicates).length + songImport.invalidRows.length;
-    setToast(`Import complete: ${rowsToSave.length} saved, ${skipped} skipped, ${songImport.invalidRows.length} errors.`);
-    setSongImport({ ...songImport, imported: true, savedCount: rowsToSave.length, skippedCount: skipped });
+    try {
+      const batch = db.batch();
+      rowsToSave.forEach((row) => {
+        const id = row.existingId || `${artist.id}-${slugify(row.song.title)}-${Date.now()}-${row.rowNumber}`;
+        batch.set(db.collection("songLibrary").doc(id), {
+          id,
+          platformId: FRONTROW_PLATFORM_ID,
+          artistId: artist.id,
+          artistName: artist.name,
+          ...row.song,
+          updatedAt: FieldValue.serverTimestamp(),
+          ...(row.existingId ? {} : { createdAt: FieldValue.serverTimestamp() }),
+        }, { merge: true });
+      });
+      await batch.commit();
+      const skipped = songImport.validRows.filter((row) => row.duplicate && !overwriteDuplicates).length + songImport.invalidRows.length;
+      setToast(`Import complete: ${rowsToSave.length} saved, ${skipped} skipped, ${songImport.invalidRows.length} errors.`);
+      setSongImport({ ...songImport, imported: true, savedCount: rowsToSave.length, skippedCount: skipped, importError: "" });
+    } catch (error) {
+      setToast(`Import failed: ${error.message}`);
+      setSongImport({ ...songImport, imported: false, importError: error.message });
+    }
   }
 
   return (
@@ -1054,6 +1061,7 @@ function SongImportPreview({ importState, overwriteDuplicates, setOverwriteDupli
             {importState.rows.slice(0, 24).map((row) => <div key={row.rowNumber} className={classNames("song-import-row", row.errors.length && "invalid", row.duplicate && "duplicate")}><strong>Row {row.rowNumber}: {row.song?.title || "Untitled"}</strong><small>{row.errors.length ? row.errors.join(" · ") : row.duplicate ? "Duplicate found; skipped unless overwrite is checked." : "Ready to import."}</small></div>)}
           </div>
           {importState.rows.length > 24 && <p className="muted compact">Showing first 24 rows of {importState.rows.length}.</p>}
+          {importState.importError && <p className="error-text">Import failed: {importState.importError}</p>}
           {importState.imported ? <p className="success-text">Import complete: {importState.savedCount} saved, {importState.skippedCount} skipped, {importState.invalidRows.length} errors.</p> : <button className="primary-button full" type="button" disabled={!importable} onClick={confirmSongImport}><Save size={18} />Confirm Import</button>}
         </>
       )}
@@ -1099,6 +1107,21 @@ function songsForArtist(songLibrary, artistId) {
   return [...songLibrary]
     .filter((song) => (song.artistId || APP_CONFIG.primaryArtistId) === artistId)
     .sort((a, b) => String(a.title).localeCompare(String(b.title)));
+}
+
+function canManageArtistCatalog(profile, roleAssignments = [], artistId) {
+  if (profile?.isAdmin) return true;
+  return roleAssignments.some((assignment) => (
+    assignment.active !== false
+    && assignment.userId === profile?.id
+    && ["artistAdmin", "artistManager", "admin", "owner", "platformAdmin"].includes(assignment.role)
+    && (
+      assignment.artistId === artistId
+      || assignment.scopeId === artistId
+      || assignment.platformId === FRONTROW_PLATFORM_ID
+      || assignment.scope === "platform"
+    )
+  ));
 }
 
 function blankSongDraft(artist) {

@@ -21,8 +21,33 @@ service cloud.firestore {
 
     function isAdmin() {
       return signedIn()
-        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+        && (
+          request.auth.token.admin == true
+          || (
+            exists(/databases/$(database)/documents/users/$(request.auth.uid))
+            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true
+          )
+        );
+    }
+
+    function roleDocAllows(roleDocId, allowedRoles) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/roleAssignments/$(roleDocId))
+        && get(/databases/$(database)/documents/roleAssignments/$(roleDocId)).data.userId == request.auth.uid
+        && get(/databases/$(database)/documents/roleAssignments/$(roleDocId)).data.active != false
+        && get(/databases/$(database)/documents/roleAssignments/$(roleDocId)).data.role in allowedRoles;
+    }
+
+    function isPlatformAdmin() {
+      return isAdmin()
+        || roleDocAllows(request.auth.uid + '_platform_admin', ['platformAdmin', 'admin', 'owner'])
+        || roleDocAllows('platform_admin_' + request.auth.uid, ['platformAdmin', 'admin', 'owner']);
+    }
+
+    function canManageArtist(artistId) {
+      return isPlatformAdmin()
+        || roleDocAllows(artistId + '_' + request.auth.uid, ['artistAdmin', 'artistManager', 'admin', 'owner'])
+        || roleDocAllows(request.auth.uid + '_' + artistId, ['artistAdmin', 'artistManager', 'admin', 'owner']);
     }
 
     function isReferralPointAward() {
@@ -147,7 +172,9 @@ service cloud.firestore {
 
     match /songLibrary/{songId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if signedIn()
+        && request.resource.data.artistId is string
+        && canManageArtist(request.resource.data.artistId);
     }
 
     match /venues/{venueId} {
