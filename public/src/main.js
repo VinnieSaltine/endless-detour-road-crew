@@ -47,7 +47,7 @@ const Users = makeIcon(["M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", "M9 11a4 4 
 const Vote = makeIcon(["M9 12l2 2 4-4", "M5 4h14v16H5z", "M3 20h18"]);
 
 const APP_CONFIG = {
-  version: "v1.4.1",
+  version: "v1.4.2",
   foundingSeason: "Founding Season 2026",
   platformOwner: "Hallowfield Building Group, LLC",
   platformName: "FrontRow",
@@ -80,6 +80,10 @@ const seedArtists = [
   {
     id: "endless-detour",
     name: "Endless Detour",
+    members: ["Matt", "Endless Detour"],
+    genre: "Rock / Pop / Alternative Covers",
+    homeMarket: "Greater Philadelphia",
+    activeStatus: "Active",
     type: "Cover Band",
     location: "Greater Philadelphia",
     description: "Local live music, road-tested favorites, and the founding artist community on FrontRow.",
@@ -87,6 +91,43 @@ const seedArtists = [
     featured: true,
   },
 ];
+
+const SONG_STATUSES = ["Active", "Learning", "Retired"];
+
+const seedSongLibrary = [
+  songSeed("endless-detour-hey-jealousy", "Hey Jealousy", "Gin Blossoms", "3:56", "D", "Matt", "Band", "Alternative Rock", "1990s", 4, "Active", "Bright mid-set singalong."),
+  songSeed("endless-detour-mr-brightside", "Mr. Brightside", "The Killers", "3:43", "D-flat", "Matt", "Band", "Alternative Rock", "2000s", 5, "Active", "High-energy closer candidate."),
+  songSeed("endless-detour-everlong", "Everlong", "Foo Fighters", "4:10", "D", "Matt", "Band", "Rock", "1990s", 5, "Active", "Works best late in the set."),
+  songSeed("endless-detour-dont-stop-believin", "Don't Stop Believin'", "Journey", "4:11", "E", "Matt", "Band", "Classic Rock", "1980s", 5, "Learning", "Big chorus; confirm vocal handoff."),
+  songSeed("endless-detour-you-shook-me-all-night-long", "You Shook Me All Night Long", "AC/DC", "3:30", "G", "Matt", "Band", "Classic Rock", "1980s", 5, "Active", "Reliable bar-room lift."),
+  songSeed("endless-detour-wagon-wheel", "Wagon Wheel", "Old Crow Medicine Show", "3:52", "A", "Matt", "Band", "Country Rock", "2000s", 3, "Active", "Good early crowd warmup."),
+  songSeed("endless-detour-learn-to-fly", "Learn to Fly", "Foo Fighters", "3:55", "B", "Matt", "Band", "Rock", "1990s", 4, "Active", "Pairs well after mid-tempo songs."),
+  songSeed("endless-detour-semi-charmed-life", "Semi-Charmed Life", "Third Eye Blind", "4:28", "G", "Matt", "Band", "Alternative Rock", "1990s", 4, "Active", "Watch tempo drift."),
+  songSeed("endless-detour-just-like-heaven", "Just Like Heaven", "The Cure", "3:32", "A", "Matt", "Band", "New Wave", "1980s", 4, "Learning", "Good dance-floor option once locked."),
+  songSeed("endless-detour-all-the-small-things", "All the Small Things", "blink-182", "2:48", "C", "Matt", "Band", "Pop Punk", "1990s", 5, "Active", "Short punchy reset."),
+  songSeed("endless-detour-free-fallin", "Free Fallin'", "Tom Petty", "4:16", "F", "Matt", "Band", "Classic Rock", "1980s", 3, "Active", "Good acoustic-feeling breather."),
+  songSeed("endless-detour-sweet-caroline", "Sweet Caroline", "Neil Diamond", "3:21", "A", "Matt", "Crowd", "Pop", "1960s", 4, "Retired", "Keep archived for request history."),
+];
+
+function songSeed(id, title, originalArtist, duration, key, leadVocal, harmonyVocal, genre, decade, energyLevel, status, notes) {
+  return {
+    id,
+    platformId: FRONTROW_PLATFORM_ID,
+    artistId: APP_CONFIG.primaryArtistId,
+    artistName: APP_CONFIG.primaryArtistName,
+    title,
+    originalArtist,
+    duration,
+    key,
+    leadVocal,
+    harmonyVocal,
+    genre,
+    decade,
+    energyLevel,
+    status,
+    notes,
+  };
+}
 
 const seedVenues = [
   { id: "stove-tap", name: "Stove & Tap", location: "Lansdale, PA", type: "Restaurant & Live Music" },
@@ -536,6 +577,7 @@ function App() {
   const events = useCollection("events", seedEvents);
   const artists = useCollection("artists", seedArtists);
   const venues = useCollection("venues", seedVenues);
+  const songLibrary = useCollection("songLibrary", seedSongLibrary);
   const polls = useCollection("polls", seedPolls);
   const announcements = useCollection("announcements", seedAnnouncements);
   const users = useCollection("users", []);
@@ -606,6 +648,7 @@ function App() {
     allEvents: sortedEvents,
     artists,
     venues,
+    songLibrary,
     follows,
     polls,
     announcements: [...announcements].filter((item) => item.published !== false).sort((a, b) => String(b.createdAt || b.date).localeCompare(String(a.createdAt || a.date))),
@@ -637,7 +680,7 @@ function App() {
     <div className="app-shell">
       <header className="topbar">
         <button className="brand-button" onClick={() => navigate("#/")} aria-label="Go home">
-          <img className="frontrow-nav-logo" src="/assets/brand/frontrow-logo-tagline.jpg" alt="FrontRow" />
+          <img className="frontrow-nav-logo" src="/assets/brand/frontrow-logo-tagline.png" alt="FrontRow" />
           <span className="brand-context"><strong>{authUser ? profile?.displayName || authUser.email : "Live entertainment communities"}</strong><small>Powered by FrontRow</small></span>
         </button>
         <div className="topbar-actions">
@@ -657,12 +700,14 @@ function App() {
 
 function getPage(route, props) {
   if (!firebaseConfigured) return <HomePage {...props} />;
+  if (route.startsWith("#/artists/")) return <ArtistDetailPage {...props} id={route.replace("#/artists/", "")} />;
   if (route === "#/artists") return <ArtistsPage {...props} />;
   if (route === "#/venues") return <VenuesPage {...props} />;
-  if (route === "#/community") return <CommunityPage {...props} />;
-  if (route === "#/roadcrew") return <RoadCrewPage {...props} />;
+  if (route === "#/community") return <MorePage {...props} />;
+  if (route === "#/roadcrew") return requireUser(props, <ProfilePage {...props} />);
   if (route.startsWith("#/events/")) return <EventDetail {...props} id={route.replace("#/events/", "")} />;
   if (route === "#/events") return <EventsPage {...props} />;
+  if (route === "#/my-events") return requireUser(props, <MyEventsPage {...props} />);
   if (route === "#/checkin") return requireUser(props, <CheckInPage {...props} />);
   if (route === "#/rewards") return requireUser(props, <RewardsPage {...props} />);
   if (route === "#/requests") return requireUser(props, <RequestsPage {...props} />);
@@ -687,26 +732,27 @@ function requireUser(props, page) {
 
 function BottomNav({ route }) {
   const items = [
-    ["#/", Home, "Home"],
-    ["#/events", CalendarDays, "Events"],
-    ["#/community", Users, "Community"],
+    ["#/my-events", CalendarDays, "My Events"],
+    ["#/rewards", Gift, "Rewards"],
     ["#/profile", Users, "Profile"],
-    ["#/roadcrew", Trophy, "Road Crew"],
   ];
   return (
-    <nav className="bottom-nav" aria-label="Primary navigation">
-      {items.map(([hash, Icon, label]) => (
-        <button key={hash} className={classNames("nav-item", (route === hash || (hash === "#/" && route === "#/") || (hash === "#/events" && route.startsWith("#/events/")) || (hash === "#/roadcrew" && ["#/rewards", "#/checkin", "#/earn", "#/leaderboard"].includes(route))) && "active")} onClick={() => navigate(hash)}>
-          <Icon size={20} /><span>{label}</span>
-        </button>
-      ))}
+    <nav className="bottom-nav" aria-label="My FrontRow navigation">
+      <span className="nav-section-label">My FrontRow</span>
+      <div className="bottom-nav-items">
+        {items.map(([hash, Icon, label]) => (
+          <button key={hash} className={classNames("nav-item", (route === hash || (hash === "#/my-events" && route === "#/checkin") || (hash === "#/rewards" && ["#/rewards", "#/earn", "#/leaderboard"].includes(route))) && "active")} onClick={() => navigate(hash)}>
+            <Icon size={20} /><span>{label}</span>
+          </button>
+        ))}
+      </div>
     </nav>
   );
 }
 
 function PlatformNav({ route }) {
-  const items = [["#/", "Home"], ["#/artists", "Artists"], ["#/venues", "Venues"], ["#/events", "Events"], ["#/community", "Community"], ["#/profile", "Profile"], ["#/roadcrew", "Road Crew"]];
-  return <nav className="platform-nav" aria-label="FrontRow sections">{items.map(([hash, label]) => <button key={hash} className={(route === hash || (hash === "#/events" && route.startsWith("#/events/"))) ? "active" : ""} onClick={() => navigate(hash)}>{label}</button>)}</nav>;
+  const items = [["#/", "Home"], ["#/artists", "Artists"], ["#/events", "Events"], ["#/venues", "Venues"]];
+  return <nav className="platform-nav" aria-label="Discover navigation"><span className="nav-section-label discover-label">Discover</span><div className="platform-nav-items">{items.map(([hash, label]) => <button key={hash} className={(route === hash || (hash === "#/artists" && route.startsWith("#/artists/")) || (hash === "#/events" && route.startsWith("#/events/"))) ? "active" : ""} onClick={() => navigate(hash)}>{label}</button>)}</div></nav>;
 }
 
 function FirebaseSetupNotice() {
@@ -746,14 +792,102 @@ function FollowButton({ authUser, follows, entityType, entity, setToast }) {
   return <button className={following ? "secondary-button" : "primary-button"} onClick={() => toggleFollow({ authUser, follows, entityType, entity, setToast })}>{following ? <Check size={18} /> : <Plus size={18} />}{following ? "Following" : "Follow"}</button>;
 }
 
-function ArtistsPage({ artists, events, authUser, follows, setToast }) {
+function ArtistsPage({ artists, events, songLibrary, authUser, follows, setToast }) {
   return (
     <section className="page">
       <PageTitle icon={Music2} eyebrow="FrontRow discovery" title="Artists" />
       <p className="page-intro">Follow artists to build a personalized FrontRow feed and participate in their Road Crew programs.</p>
-      <div className="directory-grid">{artists.map((artist) => <article className="directory-card" key={artist.id}><div className="directory-media">{artist.imageUrl ? <img src={artist.imageUrl} alt={artist.name} /> : <Music2 size={34} />}</div><div><p className="section-kicker">{artist.type || "Artist"}</p><h2>{artist.name}</h2><p className="muted">{artist.description}</p><small>{events.filter((event) => (event.artistId || APP_CONFIG.primaryArtistId) === artist.id).length} listed events · {artist.location}</small></div><FollowButton authUser={authUser} follows={follows} entityType="artist" entity={artist} setToast={setToast} /></article>)}</div>
+      <div className="directory-grid">{artists.map((artist) => {
+        const artistEvents = events.filter((event) => (event.artistId || APP_CONFIG.primaryArtistId) === artist.id);
+        const artistSongs = songsForArtist(songLibrary, artist.id);
+        return <article className="directory-card artist-directory-card" key={artist.id}><div className="directory-media">{artist.imageUrl ? <img src={artist.imageUrl} alt={artist.name} /> : <Music2 size={34} />}</div><button className="directory-card-main" onClick={() => navigate(`#/artists/${artist.id}`)}><p className="section-kicker">{artist.type || "Artist"}</p><h2>{artist.name}</h2><p className="muted">{artist.description}</p><small>{artistEvents.length} listed events · {artistSongs.length} catalog songs · {artist.homeMarket || artist.location || "FrontRow market"}</small></button><div className="artist-card-actions"><button className="secondary-button" onClick={() => navigate(`#/artists/${artist.id}`)}><ExternalLink size={18} />View Artist</button><FollowButton authUser={authUser} follows={follows} entityType="artist" entity={artist} setToast={setToast} /></div></article>;
+      })}</div>
     </section>
   );
+}
+
+function ArtistDetailPage({ id, artists, events, songLibrary, authUser, follows, setToast }) {
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const artist = artists.find((item) => item.id === id);
+  if (!artist) return <EmptyState title="Artist not found" body="That artist is not available in FrontRow yet." />;
+  const artistEvents = events.filter((event) => (event.artistId || APP_CONFIG.primaryArtistId) === artist.id);
+  const upcomingEvents = artistEvents.filter(isUpcoming).slice(0, 4);
+  const allSongs = songsForArtist(songLibrary, artist.id);
+  const visibleSongs = allSongs.filter((song) => {
+    const text = `${song.title} ${song.originalArtist} ${song.leadVocal} ${song.genre} ${song.decade}`.toLowerCase();
+    const matchesQuery = !query.trim() || text.includes(query.trim().toLowerCase());
+    const matchesStatus = statusFilter === "All" || song.status === statusFilter;
+    return matchesQuery && matchesStatus;
+  });
+  const averageEnergy = allSongs.length ? (allSongs.reduce((total, song) => total + Number(song.energyLevel || 0), 0) / allSongs.length).toFixed(1) : "0";
+  return (
+    <section className="page artist-detail-page">
+      <button className="text-link" onClick={() => navigate("#/artists")}>Back to artists</button>
+      <section className="artist-profile-hero">
+        <div className="directory-media artist-profile-image">{artist.imageUrl ? <img src={artist.imageUrl} alt={artist.name} /> : <Music2 size={40} />}</div>
+        <div>
+          <p className="eyebrow">Artist</p>
+          <h1>{artist.name}</h1>
+          <p>{artist.description}</p>
+          <div className="artist-meta-grid">
+            <ProfileStat label="Genre" value={artist.genre || artist.type || "Artist"} />
+            <ProfileStat label="Home market" value={artist.homeMarket || artist.location || "FrontRow"} />
+            <ProfileStat label="Status" value={artist.activeStatus || "Active"} />
+          </div>
+          <div className="button-row">
+            <FollowButton authUser={authUser} follows={follows} entityType="artist" entity={artist} setToast={setToast} />
+            {artist.website && <a className="secondary-button" href={artist.website} target="_blank" rel="noreferrer"><ExternalLink size={18} />Website</a>}
+          </div>
+        </div>
+      </section>
+      <section className="panel">
+        <p className="section-kicker">Artist architecture</p>
+        <h2>Song Library → Setlists → Performances → Fan Archive</h2>
+        <p className="muted">This Phase 1 catalog is the foundation for future setlist building, performance history, and public concert archive browsing.</p>
+      </section>
+      <section className="panel">
+        <div className="home-section-heading"><h2>Upcoming Shows</h2><button className="text-button" onClick={() => navigate("#/events")}>All events</button></div>
+        {upcomingEvents.length ? <div className="home-event-grid">{upcomingEvents.map((event) => <HomeEventCard key={event.id} event={event} />)}</div> : <p className="muted">No upcoming shows listed for this artist yet.</p>}
+      </section>
+      <section className="panel song-library-panel">
+        <div className="home-section-heading"><span><p className="section-kicker">Song Library</p><h2>Catalog</h2></span><span className="song-library-summary">{allSongs.length} songs · {averageEnergy} avg energy</span></div>
+        <div className="song-library-controls">
+          <label>Search songs<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, original artist, genre..." /></label>
+          <label>Status<select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option>All</option>{SONG_STATUSES.map((status) => <option key={status}>{status}</option>)}</select></label>
+        </div>
+        <div className="song-card-list">{visibleSongs.length ? visibleSongs.map((song) => <SongCard key={song.id} song={song} />) : <p className="muted">No songs match that search.</p>}</div>
+      </section>
+    </section>
+  );
+}
+
+function SongCard({ song }) {
+  return (
+    <article className="song-card">
+      <div className="song-card-main">
+        <span className={classNames("status-pill", song.status === "Retired" && "muted-pill", song.status === "Learning" && "learning-pill")}>{song.status || "Active"}</span>
+        <h3>{song.title}</h3>
+        <p>{song.originalArtist}</p>
+      </div>
+      <div className="song-stat-grid">
+        <span><small>Duration</small><strong>{song.duration || "TBD"}</strong></span>
+        <span><small>Key</small><strong>{song.key || "TBD"}</strong></span>
+        <span><small>Lead</small><strong>{song.leadVocal || "TBD"}</strong></span>
+        <span><small>Harmony</small><strong>{song.harmonyVocal || "TBD"}</strong></span>
+        <span><small>Genre</small><strong>{song.genre || "TBD"}</strong></span>
+        <span><small>Decade</small><strong>{song.decade || "TBD"}</strong></span>
+        <span><small>Energy</small><strong>{song.energyLevel || 0}/5</strong></span>
+      </div>
+      {song.notes && <p className="song-notes">{song.notes}</p>}
+    </article>
+  );
+}
+
+function songsForArtist(songLibrary, artistId) {
+  return [...songLibrary]
+    .filter((song) => (song.artistId || APP_CONFIG.primaryArtistId) === artistId)
+    .sort((a, b) => String(a.title).localeCompare(String(b.title)));
 }
 
 function VenuesPage({ venues, events, authUser, follows, setToast }) {
@@ -775,7 +909,6 @@ function CommunityPage({ announcements }) {
         <PlatformAction icon={Megaphone} title="Announcements" body="Updates from artists and FrontRow communities." route="#/announcements" />
         <PlatformAction icon={Vote} title="Polls" body="Help shape songs, shows, and community decisions." route="#/polls" />
         <PlatformAction icon={Music2} title="Song Requests" body="Send a request for an upcoming event." route="#/requests" />
-        <PlatformAction icon={Trophy} title="Road Crew Leaderboard" body="See community participation and Road Crew status." route="#/leaderboard" />
       </div>
       {announcements[0] && <section className="panel"><p className="section-kicker">Latest community update</p><h2>{announcements[0].title}</h2><p className="muted">{announcements[0].body}</p></section>}
     </section>
@@ -804,35 +937,51 @@ function RoadCrewPage({ authUser, profile, rewards, referrals, actionClaims }) {
   );
 }
 
-function HomePage({ authUser, profile, nextEvent, announcements, rewards, actionClaims, artists, venues }) {
-  const recommended = getRecommendedAction(profile, actionClaims);
+function HomePage({ events, artists }) {
+  const upcomingEvents = events.filter(isUpcoming).slice(0, 3);
+  const featuredArtists = artists.filter((artist) => artist.featured !== false).slice(0, 3);
   return (
-    <section className="page">
+    <section className="page home-page">
       <div className="hero">
-        <img className="frontrow-hero-logo" src="/assets/brand/frontrow-logo-tagline.jpg" alt="FrontRow. The platform where artists earn loyalties." />
-        <p className="eyebrow">Connect. Engage. Reward. Grow Together.</p>
-        <h1>The live entertainment loyalty platform.</h1>
-        <p className="hero-copy">FrontRow helps artists, venues, and fans build direct live communities. Road Crew powers the Milemarkers, status, check-ins, rewards, and recognition inside the platform.</p>
-        <div className="frontrow-value-grid hero-value-grid"><span>Build Loyalties</span><span>Drive Attendance</span><span>Own the Relationship</span></div>
+        <div className="frontrow-hero-lockup" aria-label="FrontRow. The platform where artists earn loyalties.">
+          <strong><span>FRONT</span><span>ROW</span></strong>
+          <small>THE PLATFORM WHERE ARTISTS EARN LOYALTIES</small>
+        </div>
+        <p className="hero-supporting-title">The live entertainment loyalty platform.</p>
         <div className="hero-actions">
-          <button className="primary-button" onClick={() => navigate("#/events")}><CalendarDays size={18} />Explore events</button>
-          <button className="secondary-button" onClick={() => navigate("#/artists")}><Music2 size={18} />Find artists</button>
+          <button className="primary-button" onClick={() => navigate("#/events")}><CalendarDays size={18} />Explore Events</button>
+          <button className="secondary-button" onClick={() => navigate("#/artists")}><Music2 size={18} />Find Artists</button>
         </div>
       </div>
-      <section className="frontrow-principles"><span><Compass size={22} /><strong>Discovery</strong><small>Artists, venues, and events</small></span><span><Users size={22} /><strong>Community</strong><small>Shared live experiences</small></span><span><Trophy size={22} /><strong>Road Crew</strong><small>Rewards and recognition</small></span></section>
-      {authUser && profile && (
-        <MilemarkerStatusProgress profile={profile} rewards={rewards} />
-      )}
-      <div className="platform-action-grid"><PlatformAction icon={Music2} title={`${artists.length} Featured Artist${artists.length === 1 ? "" : "s"}`} body="Explore artist communities on FrontRow." route="#/artists" /><PlatformAction icon={Building2} title={`${venues.length} Live Venues`} body="Follow the places hosting the scene." route="#/venues" /><PlatformAction icon={Trophy} title="FrontRow Road Crew" body="Open your loyalty and engagement program." route="#/roadcrew" /><PlatformAction icon={Users} title="Community" body="Polls, requests, announcements, and rankings." route="#/community" /></div>
-      {authUser && <RecommendedAction action={recommended} />}
-      {nextEvent && <NextShow event={nextEvent} />}
-      <section className="panel">
-        <p className="section-kicker">Announcements</p>
-        <h2>{announcements[0]?.title || "No announcements yet"}</h2>
-        <p className="muted">{announcements[0]?.body || "Band updates will appear here and in the announcements feed."}</p>
-        <button className="secondary-button full" onClick={() => navigate("#/announcements")}><Megaphone size={18} />Open feed</button>
+      <section className="home-discovery-section">
+        <div className="home-section-heading"><h2>Upcoming Events</h2><button className="text-button" onClick={() => navigate("#/events")}>View all</button></div>
+        <div className="home-event-grid">{upcomingEvents.length ? upcomingEvents.map((event) => <HomeEventCard key={event.id} event={event} />) : <p className="muted">New events are coming soon.</p>}</div>
+      </section>
+      <section className="home-discovery-section">
+        <div className="home-section-heading"><h2>Featured Artists</h2><button className="text-button" onClick={() => navigate("#/artists")}>View all</button></div>
+        <div className="home-artist-grid">{featuredArtists.length ? featuredArtists.map((artist) => <HomeArtistCard key={artist.id} artist={artist} />) : <p className="muted">Featured artists are coming soon.</p>}</div>
       </section>
     </section>
+  );
+}
+
+function HomeEventCard({ event }) {
+  return (
+    <button className="home-event-card" onClick={() => navigate(`#/events/${event.id}`)}>
+      <div className="date-badge"><span>{new Date(`${event.date}T12:00:00`).toLocaleString("en-US", { month: "short" })}</span><strong>{new Date(`${event.date}T12:00:00`).getDate()}</strong></div>
+      <span><small>{event.artistName || APP_CONFIG.primaryArtistName}</small><strong>{event.venue}</strong><em>{formatDate(event.date)} · {formatTime(event.startTime)}</em></span>
+      <ExternalLink size={18} />
+    </button>
+  );
+}
+
+function HomeArtistCard({ artist }) {
+  return (
+    <button className="home-artist-card" onClick={() => navigate(`#/artists/${artist.id}`)}>
+      <div className="directory-media">{artist.imageUrl ? <img src={artist.imageUrl} alt="" /> : <Music2 size={34} />}</div>
+      <span><small>{artist.type || "Artist community"}</small><strong>{artist.name}</strong><em>{artist.location || "FrontRow community"}</em></span>
+      <ExternalLink size={18} />
+    </button>
   );
 }
 
@@ -935,7 +1084,7 @@ function AuthPage({ setToast }) {
       <PageTitle icon={Lock} eyebrow="FrontRow account" title={mode === "signup" ? "Join FrontRow" : "Welcome back"} />
       <section className="frontrow-auth-hero">
         <div className="frontrow-platform-intro">
-          <img src="/assets/brand/frontrow-logo-tagline.jpg" alt="FrontRow. The platform where artists earn loyalties." />
+          <img src="/assets/brand/frontrow-logo-tagline.png" alt="FrontRow. The platform where artists earn loyalties." />
           <strong>Connect. Engage. Reward. Grow Together.</strong>
           <p>Fans get a persistent FrontRow identity. Road Crew tracks loyalty, Milemarkers, status, rewards, and live participation.</p>
         </div>
@@ -1051,6 +1200,28 @@ function EventsPage({ events, authUser, profile, eventInterest, setToast }) {
       <PageTitle icon={CalendarDays} eyebrow="FrontRow events" title="Upcoming events" />
       <div className="source-note">FrontRow currently features the Endless Detour schedule from <a href={EVENT_SOURCE} target="_blank" rel="noreferrer">endlessdetourband.com/events</a>. Additional artists and venues can use the same event model.</div>
       <div className="event-list">{events.map((event) => <EventCard key={event.id} event={event} authUser={authUser} profile={profile} eventInterest={eventInterest} setToast={setToast} />)}</div>
+    </section>
+  );
+}
+
+function MyEventsPage({ authUser, allEvents, eventInterest, checkIns }) {
+  const myInterests = eventInterest.filter((item) => item.userId === authUser.uid && item.status === "interested");
+  const myCheckIns = checkIns.filter((item) => item.userId === authUser.uid);
+  const interestedIds = new Set(myInterests.map((item) => item.eventId));
+  const checkedInIds = new Set(myCheckIns.map((item) => item.eventId));
+  const upcoming = allEvents.filter((event) => interestedIds.has(event.id) && isUpcoming(event));
+  const attended = allEvents.filter((event) => checkedInIds.has(event.id)).sort((a, b) => `${b.date}${b.startTime}`.localeCompare(`${a.date}${a.startTime}`));
+
+  function MyEventRows({ items, empty, status }) {
+    return items.length ? <div className="profile-history">{items.map((event) => <button className="profile-history-row text-row-button" key={event.id} onClick={() => navigate(`#/events/${event.id}`)}><CalendarDays size={19} /><span><strong>{event.venue}</strong><small>{formatDate(event.date)} · {formatTime(event.startTime)} · {event.address}</small></span><b>{status}</b><ExternalLink size={17} /></button>)}</div> : <p className="muted compact">{empty}</p>;
+  }
+
+  return (
+    <section className="page">
+      <PageTitle icon={CalendarDays} eyebrow="My FrontRow" title="My Events" />
+      <section className="panel"><div className="profile-stat-grid"><ProfileStat label="Upcoming interests" value={upcoming.length} /><ProfileStat label="Shows attended" value={myCheckIns.length} /><ProfileStat label="All RSVPs" value={myInterests.length} /></div><div className="button-row"><button className="primary-button" onClick={() => navigate("#/checkin")}><Check size={18} />Check In</button><button className="secondary-button" onClick={() => navigate("#/events")}><Compass size={18} />Discover Events</button></div></section>
+      <section className="panel"><p className="section-kicker">Upcoming</p><h2>Events you're interested in</h2><MyEventRows items={upcoming} empty="Mark events as interested to build your personal event dashboard." status="Interested" /></section>
+      <section className="panel"><p className="section-kicker">History</p><h2>Attended and checked in</h2><MyEventRows items={attended} empty="Your verified check-in history will appear here." status="Checked In" /></section>
     </section>
   );
 }
@@ -1324,7 +1495,7 @@ function RewardsPage({ profile, authUser, referrals, rewards, rewardCatalog, son
       <PageTitle icon={Gift} eyebrow="FrontRow Road Crew" title="Road Crew Rewards" />
       <EarnCallout />
       <div className="reward-card">
-        <img src="/assets/brand/frontrow-logo-tagline.jpg" alt="FrontRow Road Crew" />
+        <img src="/assets/brand/frontrow-logo-tagline.png" alt="FrontRow Road Crew" />
         <Trophy size={42} />
         <strong>{milemarkers} Milemarkers</strong>
         <span>{currentStatus.name} · {checkInCount} check-ins</span>
@@ -1649,11 +1820,11 @@ function ProfilePage({ authUser, profile, allEvents, checkIns, eventInterest, re
       <section className="panel"><p className="section-kicker">Show History</p><h2>Your stops</h2><div className="profile-history">{showHistory.length ? showHistory.map((item) => <div className="profile-history-row" key={item.id}><CalendarDays size={19} /><span><strong>{item.title}</strong><small>{item.venue}{item.date ? ` · ${formatDate(item.date)}` : ""}</small></span><b>{item.status}</b></div>) : <p className="muted">Your interested shows and check-ins will appear here.</p>}</div></section>
       <section><p className="section-kicker">Achievements</p><div className="achievement-grid">{achievements.map((achievement) => <div key={achievement.name} className={classNames("achievement", achievement.earned && "earned")}><Star size={20} /><span><strong>{achievement.name}</strong><small>{achievement.earned ? "Earned" : "Locked"}</small></span></div>)}</div></section>
       <div className="stack">
+        <button className="primary-button full" onClick={() => navigate("#/rewards")}><Gift size={18} />Road Crew Rewards</button>
+        <button className="secondary-button full" onClick={() => navigate("#/checkin")}><MapPin size={18} />Check In at a Show</button>
         <button className="secondary-button full" onClick={() => navigate("#/leaderboard")}><Trophy size={18} />Road Crew Leaderboard</button>
         <button className="secondary-button full" onClick={() => navigate("#/earn")}><Star size={18} />How to Earn Milemarkers</button>
         <button className="secondary-button full" onClick={() => navigate("#/about")}><Radio size={18} />About Road Crew</button>
-        <button className="secondary-button full" onClick={() => navigate("#/roadcrew")}><Trophy size={18} />Open Road Crew</button>
-        <button className="secondary-button full" onClick={() => navigate("#/community")}><Users size={18} />FrontRow Community</button>
       </div>
     </section>
   );
@@ -1719,23 +1890,14 @@ function TipJarPage({ tipJar, authUser, profile, actionClaims, setToast }) {
   );
 }
 
-function MorePage({ authUser, profile, rewards }) {
+function MorePage({ profile }) {
   return (
     <section className="page">
       <PageTitle icon={Home} eyebrow="FrontRow" title="More" />
-      <section className="panel profile-card">
-        <h2>{profile?.displayName || "FrontRow Member"}</h2>
-        <p className="muted">{authUser?.email}</p>
-        <div className="two-grid"><InfoTile icon={Trophy} label="Milemarkers" value={cumulativePoints(profile)} /><InfoTile icon={Check} label="Check-ins" value={profile?.totalCheckIns || 0} /></div>
-        <p className="muted compact">Current Status: {statusForMilemarkers(cumulativePoints(profile)).name}</p>
-      </section>
-      <MilemarkerStatusProgress profile={profile} rewards={rewards} />
       <div className="stack menu-grid">
         <button className="primary-button full" onClick={() => navigate("#/profile")}><Users size={18} />FrontRow Profile</button>
         <button className="secondary-button full" onClick={() => navigate("#/artists")}><Music2 size={18} />Artists</button>
         <button className="secondary-button full" onClick={() => navigate("#/venues")}><Building2 size={18} />Venues</button>
-        <button className="secondary-button full" onClick={() => navigate("#/community")}><Users size={18} />Community</button>
-        <button className="secondary-button full" onClick={() => navigate("#/roadcrew")}><Trophy size={18} />FrontRow Road Crew</button>
         <button className="secondary-button full" onClick={() => navigate("#/leaderboard")}><Trophy size={18} />Leaderboard & Privacy</button>
         <button className="secondary-button full" onClick={() => navigate("#/earn")}><Star size={18} />How to Earn Milemarkers</button>
         <button className="secondary-button full" onClick={() => navigate("#/requests")}><Music2 size={18} />Song Requests</button>
@@ -1754,7 +1916,7 @@ function AboutPage() {
     <section className="page">
       <PageTitle icon={Radio} eyebrow="About" title="About Road Crew" />
       <section className="panel about-road-crew">
-        <img src="/assets/brand/frontrow-logo-tagline.jpg" alt="FrontRow" />
+        <img src="/assets/brand/frontrow-logo-tagline.png" alt="FrontRow" />
         <p><strong>FrontRow</strong> is the operating system for live entertainment communities: discovery, events, community, and fan identity in one place.</p>
         <p><strong>Road Crew</strong> is FrontRow's loyalty and engagement program. Members earn Milemarkers, status, badges, achievements, rewards, and recognition by participating in live entertainment communities.</p>
         <p>Endless Detour is the founding artist community on FrontRow. Future artists and venues can operate their own communities and Road Crew experiences within the same platform.</p>
@@ -1899,7 +2061,7 @@ function AdminSection({ id, title, summary, expanded, onToggle, children }) {
 }
 
 function AdminPage(props) {
-  const { profile, events, allEvents, users, checkIns, songRequests, referrals, rewards, rewardCatalog, polls, pollVotes, allAnnouncements, allActionClaims, eventInterest, eventSecrets, setToast, tipJar } = props;
+  const { profile, events, allEvents, users, checkIns, songRequests, referrals, rewards, rewardCatalog, polls, pollVotes, allAnnouncements, allActionClaims, eventInterest, eventSecrets, songLibrary, setToast, tipJar } = props;
   const [eventDraft, setEventDraft] = useState(blankEvent());
   const [announcement, setAnnouncement] = useState({ id: "", title: "", body: "", published: true });
   const [pollDraft, setPollDraft] = useState({ id: "", question: "", options: "Option one\nOption two", active: true });
@@ -1913,6 +2075,7 @@ function AdminPage(props) {
     setup: setupNeeded,
     events: true,
     users: false,
+    songLibrary: false,
     milemarkerRequests: pendingMilemarkerRequests.length > 0,
     manualBonus: false,
     songRequests: false,
@@ -2224,6 +2387,7 @@ function AdminPage(props) {
       await db.collection("eventSecrets").doc(event.id).set({ eventId: event.id, code, codeHash, createdAt: FieldValue.serverTimestamp() }, { merge: true });
     }));
     await Promise.all(seedAchievementDefinitions.map((achievement) => db.collection("achievementDefinitions").doc(achievement.id).set({ ...achievement, ...frontRowScope(), createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() }, { merge: true })));
+    await Promise.all(seedSongLibrary.map((song) => db.collection("songLibrary").doc(song.id).set({ ...song, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() }, { merge: true })));
     await Promise.all(seedPolls.map((poll) => db.collection("polls").doc(poll.id).set({ ...poll, createdAt: FieldValue.serverTimestamp() }, { merge: true })));
     await Promise.all(seedAnnouncements.map((item) => db.collection("announcements").doc(item.id).set({ ...item, createdAt: FieldValue.serverTimestamp() }, { merge: true })));
     await Promise.all(seedRewardCatalog.map((reward) => db.collection("rewardCatalog").doc(reward.id).set({ ...reward, createdAt: FieldValue.serverTimestamp() }, { merge: true })));
@@ -2328,6 +2492,7 @@ function AdminPage(props) {
           return <AdminRow key={event.id} title={event.venue} subtitle={`${event.active === false ? "Hidden · " : ""}${formatDate(event.date)} · Code: ${code} · ${report?.interestedCount || 0} interested · ${report?.checkInCount || 0} check-ins`}><AdminEventAction icon={Edit3} label="Edit" title="Edit Event" onClick={() => editEvent(event)} /><AdminEventAction icon={ClipboardList} label="Copy Code" title="Copy Event Code" disabled={!secret} onClick={() => copyEventCode(event.id)} /><AdminEventAction icon={Lock} label={secret ? "Regenerate" : "Secure Code"} title={secret ? "Regenerate Event Code" : "Secure / Generate Event Code"} onClick={() => secureEventCode(event)} /><AdminEventAction icon={Trash2} label="Delete" title="Delete Event" danger onClick={async () => { if (!window.confirm(`Delete ${event.venue}? Existing reports will retain their historical records, but the event will be removed.`)) return; await db.collection("events").doc(event.id).delete(); await db.collection("eventSecrets").doc(event.id).delete(); }} /></AdminRow>;
         })}</div></div></AdminSection>
         <AdminSection id="users" title="Users / Members" summary={`${users.length} Road Crew members`} expanded={adminSections.sections.users} onToggle={() => adminSections.toggle("users")}><AdminCollection items={users} empty="No users yet." render={(item) => `${item.displayName} · ${cumulativePoints(item)} Milemarkers · ${statusForMilemarkers(cumulativePoints(item)).name} · ${item.totalCheckIns || 0} check-ins`} /></AdminSection>
+        <AdminSection id="songLibrary" title="Artist Song Library" summary={`${songLibrary.length} songs across ${new Set(songLibrary.map((song) => song.artistId || APP_CONFIG.primaryArtistId)).size} artists`} expanded={adminSections.sections.songLibrary} onToggle={() => adminSections.toggle("songLibrary")}><p className="muted compact">Phase 1 foundation for setlist building, performance history, and fan-facing song archives. Songs are scoped by artistId.</p><AdminCollection items={[...songLibrary].sort((a, b) => `${a.artistName || ""}${a.title || ""}`.localeCompare(`${b.artistName || ""}${b.title || ""}`))} empty="No song library records yet. Seed starter data to create the founding catalog." render={(song) => `${song.artistName || APP_CONFIG.primaryArtistName} · ${song.title} · ${song.originalArtist || "Original artist TBD"} · ${song.key || "Key TBD"} · ${song.duration || "Runtime TBD"} · Energy ${song.energyLevel || 0}/5 · ${song.status || "Active"}`} /></AdminSection>
         <AdminSection id="milemarkerRequests" title="Milemarker Verification Requests" summary={`${pendingMilemarkerRequests.length} pending · ${reviewedMilemarkerRequests.length} reviewed`} expanded={adminSections.sections.milemarkerRequests} onToggle={() => adminSections.toggle("milemarkerRequests")}><div className="admin-section-block"><h2>Pending requests</h2><AdminCollection items={pendingMilemarkerRequests} empty="No pending verification requests." render={(claim) => `${claim.displayName || users.find((user) => user.id === claim.userId)?.displayName || "Road Crew member"} · ${claim.actionName || claim.actionType} · ${claim.milemarkers || claim.pointsAwarded || 0} Milemarkers`} action={(claim) => <div className="button-row"><button className="primary-button" onClick={() => approveMilemarkerRequest(claim)}>Approve</button><button className="secondary-button" onClick={() => denyMilemarkerRequest(claim)}>Deny</button></div>} /></div><div className="admin-section-block"><h2>Request history</h2><AdminCollection items={reviewedMilemarkerRequests} empty="No reviewed verification requests." render={(claim) => `${claim.displayName || users.find((user) => user.id === claim.userId)?.displayName || "Road Crew member"} · ${claim.actionName || claim.actionType} · ${verificationStatus(claim)}`} /></div></AdminSection>
         <AdminSection id="manualBonus" title="Manual Bonus Milemarkers" summary="Award a band bonus to a member" expanded={adminSections.sections.manualBonus} onToggle={() => adminSections.toggle("manualBonus")}><form className="form" onSubmit={addBonus}><label>User<select value={bonus.userId} onChange={(event) => setBonus({ ...bonus, userId: event.target.value })} required><option value="">Choose user</option>{users.map((user) => <option key={user.id} value={user.id}>{user.displayName}</option>)}</select></label><label>Milemarkers<input type="number" value={bonus.points} onChange={(event) => setBonus({ ...bonus, points: event.target.value })} /></label><label>Reason<input value={bonus.reason} onChange={(event) => setBonus({ ...bonus, reason: event.target.value })} /></label><button className="primary-button full" type="submit"><Plus size={18} />Add bonus Milemarkers</button></form></AdminSection>
         <AdminSection id="songRequests" title="Song Requests" summary={`${songRequests.length} requests`} expanded={adminSections.sections.songRequests} onToggle={() => adminSections.toggle("songRequests")}><AdminCollection items={songRequests} empty="No requests yet." render={(item) => `${item.song} · ${item.eventTitle} · ${item.userDisplayName}${item.played ? " · Played" : ""}`} action={(item) => !item.played && <button className="secondary-button" onClick={() => markRequestPlayed(item)}>Played</button>} /></AdminSection>

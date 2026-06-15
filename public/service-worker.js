@@ -7,7 +7,7 @@
  * owned by their respective rights holders and used by permission.
  */
 
-const CACHE_NAME = "frontrow-v22";
+const CACHE_NAME = "frontrow-v26";
 const APP_SHELL = ["/", "/index.html", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {

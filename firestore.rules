@@ -145,6 +145,11 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /songLibrary/{songId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     match /venues/{venueId} {
       allow read: if true;
       allow write: if isAdmin();

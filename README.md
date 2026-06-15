@@ -69,6 +69,7 @@ The app reads and writes these Firestore collections:
 - `users`
 - `communities`
 - `artists`
+- `songLibrary`
 - `venues`
 - `follows`
 - `roadCrewProfiles`
@@ -183,20 +184,33 @@ Admins can use **Download CSV** to export these report fields for spreadsheets, 
 
 ## FrontRow Navigation
 
-The platform navigation is:
+FrontRow is organized around user intent:
 
 ```text
-FrontRow
-├── Home
-├── Artists
-├── Venues
-├── Events
-├── Community
-├── Profile
-└── Road Crew
+Discover → Find experiences.
+My FrontRow → Manage my relationship with those experiences.
 ```
 
-The mobile bottom navigation keeps the highest-use destinations within easy reach: Home, Events, Community, Profile, and Road Crew. Artists and Venues remain accessible from the top platform navigation and Home.
+**Discover** is the top navigation for public-facing exploration:
+
+```text
+├── Home
+├── Artists
+├── Events
+└── Venues
+```
+
+**My FrontRow** is the persistent bottom navigation for the personal fan dashboard:
+
+```text
+├── My Events
+├── Rewards
+└── Profile
+```
+
+Top **Events** means public event discovery. Bottom **My Events** means the member's RSVPs, interested events, attended events, check-ins, and upcoming personal event activity. The subtle Discover and My FrontRow labels make the two navigation roles explicit without adding duplicate destinations.
+
+The simplified FrontRow homepage is discovery-focused: one hero, upcoming events, and featured artists. Personal Road Crew status, Milemarkers, rewards, achievements, check-ins, and progress live in My FrontRow destinations rather than on Home. Road Crew is not a primary navigation destination.
 
 ## Multi-Artist Data Model
 
@@ -205,6 +219,35 @@ FrontRow discovery uses public `artists` and `venues` collections. Member follow
 Events support `artistId`, `artistName`, and `venueId`. New check-ins, event-interest records, and song requests preserve that context so future reporting can work across the platform, by artist, or by venue. Existing Endless Detour records without these fields remain compatible and default to the founding artist community.
 
 Admins can seed the founding artist and venue directory with **Seed starter data**. The event editor includes artist and venue identifiers so additional communities can use the same event workflow.
+
+## Artist Song Library And Setlist Architecture
+
+FrontRow treats **Artist** as the primary object. Events, venues, follows, Road Crew activity, song requests, song libraries, setlists, and performance archives are attached to an artist wherever possible.
+
+Phase 1 adds the artist-scoped `songLibrary` collection. Each song document supports:
+
+- Artist ID and artist name
+- Song title
+- Original artist
+- Duration
+- Key
+- Lead vocal
+- Harmony vocal
+- Genre
+- Decade
+- Energy level from 1-5
+- Song status: Active, Learning, or Retired
+- Notes
+
+The public artist page now includes a searchable **Song Catalog**. This makes each artist page the center of the platform and creates the foundation for the later setlist and performance archive features.
+
+Planned next layers:
+
+- **Setlist Builder:** manual and auto-generated setlists built from the song library, with runtime, song count, key balance, vocal balance, and energy balance.
+- **Performance History:** archived performances with artist, venue, date, setlist used, notes, audience size, and rating.
+- **Fan Archive:** public browsing for historical setlists, frequently played songs, searchable performances, and artist statistics.
+
+FrontRow Radio is intentionally not part of this phase.
 
 ## Road Crew Milemarkers System
 

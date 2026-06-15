@@ -96,7 +96,7 @@ a {
   display: block;
   width: min(245px, 48vw);
   max-height: 54px;
-  object-fit: cover;
+  object-fit: contain;
   object-position: left center;
 }
 
@@ -146,16 +146,36 @@ a {
 }
 
 .platform-nav {
+  display: grid;
+  gap: 6px;
+  margin: 0 -12px 8px;
+  padding: 0 12px 8px;
+}
+
+.platform-nav-items {
   display: flex;
   gap: 5px;
   overflow-x: auto;
-  margin: 0 -12px 8px;
-  padding: 0 12px 8px;
   scrollbar-width: none;
 }
 
-.platform-nav::-webkit-scrollbar {
+.platform-nav-items::-webkit-scrollbar {
   display: none;
+}
+
+.nav-section-label {
+  display: block;
+  color: var(--accent);
+  font-size: 0.64rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.discover-label {
+  padding-left: 2px;
+  color: var(--muted);
 }
 
 .platform-nav button {
@@ -204,24 +224,21 @@ a {
 .hero {
   position: relative;
   overflow: hidden;
-  min-height: 430px;
+  min-height: 390px;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   padding: 26px 18px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background:
-    linear-gradient(90deg, rgba(9, 9, 11, 0.98), rgba(9, 9, 11, 0.76) 52%, rgba(9, 9, 11, 0.16)),
-    url("/assets/brand/frontrow-rockstar-hero.jpg") center / cover,
-    #151517;
+  background: url("/assets/brand/frontrow-rockstar-hero.jpg") center / cover no-repeat;
 }
 
 .hero::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, rgba(0, 0, 0, 0.46), transparent 58%);
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.88), rgba(0, 0, 0, 0.12) 72%);
   pointer-events: none;
 }
 
@@ -246,17 +263,118 @@ a {
   letter-spacing: 0;
 }
 
-.frontrow-hero-logo {
-  width: min(620px, 100%);
-  max-height: 150px;
-  object-fit: cover;
-  object-position: left top;
-  margin-bottom: 12px;
+.frontrow-hero-lockup {
+  width: min(720px, 100%);
+  margin-bottom: 18px;
+  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.88);
 }
 
-.hero-value-grid {
-  max-width: 620px;
+.frontrow-hero-lockup strong {
+  display: block;
+  color: #fff;
+  font-size: clamp(3rem, 15vw, 6.8rem);
+  font-weight: 950;
+  line-height: 0.82;
+}
+
+.frontrow-hero-lockup strong span:last-child,
+.frontrow-hero-lockup small {
+  color: var(--accent);
+}
+
+.frontrow-hero-lockup small {
+  display: block;
+  margin-top: 14px;
+  color: #fff;
+  font-size: clamp(0.66rem, 2.6vw, 1rem);
+  font-weight: 850;
+  letter-spacing: 0;
+}
+
+.hero-supporting-title {
+  max-width: 520px;
   margin-bottom: 16px;
+  color: #e4e4e7;
+  font-size: 1rem;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.home-discovery-section {
+  display: grid;
+  gap: 12px;
+  padding: 22px 0;
+  border-top: 1px solid var(--line);
+}
+
+.home-section-heading {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.home-section-heading h2 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.home-event-grid,
+.home-artist-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.home-event-card,
+.home-artist-card {
+  display: grid;
+  width: 100%;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+  min-height: 92px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(21, 21, 23, 0.88);
+  color: var(--text);
+  text-align: left;
+}
+
+.home-event-card span,
+.home-event-card strong,
+.home-event-card small,
+.home-event-card em,
+.home-artist-card span,
+.home-artist-card strong,
+.home-artist-card small,
+.home-artist-card em {
+  display: block;
+  min-width: 0;
+}
+
+.home-event-card small,
+.home-artist-card small {
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.home-event-card strong,
+.home-artist-card strong {
+  margin: 3px 0;
+  font-size: 1rem;
+}
+
+.home-event-card em,
+.home-artist-card em {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .frontrow-principles {
@@ -337,8 +455,32 @@ a {
   background: rgba(21, 21, 23, 0.92);
 }
 
+.artist-directory-card {
+  grid-template-columns: 74px 1fr;
+}
+
+.directory-card-main {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.artist-card-actions {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 9px;
+}
+
 .directory-card > button {
   grid-column: 1 / -1;
+}
+
+.directory-card > .directory-card-main {
+  grid-column: auto;
 }
 
 .directory-card h2,
@@ -366,6 +508,115 @@ a {
   height: 100%;
   object-fit: contain;
   padding: 7px;
+}
+
+.artist-profile-hero {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(242, 211, 79, 0.12), rgba(88, 28, 135, 0.1)),
+    rgba(15, 15, 17, 0.94);
+}
+
+.artist-profile-hero h1,
+.artist-profile-hero p {
+  margin: 0;
+}
+
+.artist-profile-hero h1 {
+  margin-bottom: 8px;
+  font-size: clamp(2rem, 10vw, 4.8rem);
+}
+
+.artist-profile-image {
+  width: 96px;
+  height: 96px;
+}
+
+.artist-meta-grid,
+.song-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.song-library-panel {
+  gap: 14px;
+}
+
+.song-library-summary {
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.song-library-controls {
+  display: grid;
+  gap: 10px;
+}
+
+.song-card-list {
+  display: grid;
+  gap: 10px;
+}
+
+.song-card {
+  display: grid;
+  gap: 12px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(9, 9, 11, 0.72);
+}
+
+.song-card h3,
+.song-card p {
+  margin: 0;
+}
+
+.song-card h3 {
+  font-size: 1.1rem;
+}
+
+.song-card-main p,
+.song-notes {
+  color: var(--muted);
+}
+
+.song-stat-grid {
+  margin-top: 0;
+}
+
+.song-stat-grid span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.song-stat-grid small {
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.song-stat-grid strong {
+  overflow-wrap: anywhere;
+}
+
+.song-notes {
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-size: 0.9rem;
 }
 
 .road-crew-intro {
@@ -728,6 +979,11 @@ input:disabled {
 .status-pill.muted-pill {
   background: rgba(161, 161, 170, 0.12);
   color: var(--muted);
+}
+
+.status-pill.learning-pill {
+  background: rgba(242, 211, 79, 0.14);
+  color: var(--accent);
 }
 
 .detail-hero {
@@ -1295,12 +1551,21 @@ textarea:focus {
   left: 0;
   z-index: 20;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 2px;
-  padding: 7px max(7px, env(safe-area-inset-left)) calc(7px + env(safe-area-inset-bottom));
+  gap: 5px;
+  padding: 8px max(7px, env(safe-area-inset-left)) calc(7px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--line);
   background: rgba(9, 9, 11, 0.94);
   backdrop-filter: blur(18px);
+}
+
+.bottom-nav > .nav-section-label {
+  padding-left: 8px;
+}
+
+.bottom-nav-items {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
 }
 
 .nav-item {
@@ -1328,8 +1593,12 @@ textarea:focus {
   }
 
   .hero {
-    min-height: 520px;
+    min-height: 470px;
     padding: 42px;
+  }
+
+  .hero-supporting-title {
+    font-size: 1.12rem;
   }
 
   .hero-actions,
@@ -1346,13 +1615,32 @@ textarea:focus {
   }
 
   .platform-nav {
-    justify-content: center;
+    justify-content: stretch;
     margin-inline: 0;
+  }
+
+  .platform-nav-items {
+    justify-content: center;
   }
 
   .platform-action-grid,
   .directory-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .home-event-grid,
+  .home-artist-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .home-event-card,
+  .home-artist-card {
+    grid-template-columns: auto 1fr;
+  }
+
+  .home-event-card > svg,
+  .home-artist-card > svg {
+    display: none;
   }
 
   .two-grid,

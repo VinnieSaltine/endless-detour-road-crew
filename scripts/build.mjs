@@ -14,6 +14,7 @@ const requiredFiles = [
   "public/src/styles.css",
   "public/src/frontrow-brand.css",
   "public/assets/brand/frontrow-logo-tagline.jpg",
+  "public/assets/brand/frontrow-logo-tagline.png",
   "public/assets/brand/frontrow-rockstar-hero.jpg",
   "public/icons/frontrow-icon-192.png",
   "public/icons/frontrow-icon-512.png",

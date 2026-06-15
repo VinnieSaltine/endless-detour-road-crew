@@ -13,20 +13,17 @@
   display: block;
   width: min(230px, 48vw);
   max-height: 54px;
-  object-fit: cover;
+  object-fit: contain;
   object-position: left center;
   border-radius: 0;
 }
 
-.frontrow-home-hero,
 .frontrow-auth-hero {
   position: relative;
   isolation: isolate;
   overflow: hidden;
   border: 1px solid rgba(246, 200, 74, 0.28);
-  background:
-    linear-gradient(90deg, rgba(5, 4, 13, 0.98) 0%, rgba(5, 4, 13, 0.8) 48%, rgba(5, 4, 13, 0.18) 100%),
-    url("/assets/brand/frontrow-rockstar-hero.jpg") center / cover no-repeat;
+  background: linear-gradient(90deg, rgba(5, 4, 13, 0.98) 0%, rgba(5, 4, 13, 0.84) 52%, rgba(20, 12, 36, 0.92) 100%);
   box-shadow: 0 18px 46px rgba(0, 0, 0, 0.36);
 }
 
@@ -110,9 +107,8 @@
     max-height: 45px;
   }
 
-  .frontrow-home-hero,
   .frontrow-auth-hero {
-    background-position: 62% center;
+    background-position: center;
   }
 
   .frontrow-platform-intro {
