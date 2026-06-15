@@ -809,8 +809,10 @@ function ArtistsPage({ artists, events, songLibrary, authUser, follows, setToast
 function ArtistDetailPage({ id, artists, events, songLibrary, authUser, profile, follows, rewards, checkIns, setToast }) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [songDraft, setSongDraft] = useState(null);
   const artist = artists.find((item) => item.id === id);
   if (!artist) return <EmptyState title="Artist not found" body="That artist is not available in FrontRow yet." />;
+  const canManageSongs = Boolean(profile?.isAdmin);
   const artistEvents = events.filter((event) => (event.artistId || APP_CONFIG.primaryArtistId) === artist.id);
   const upcomingEvents = artistEvents.filter(isUpcoming).slice(0, 4);
   const allSongs = songsForArtist(songLibrary, artist.id);
@@ -821,6 +823,66 @@ function ArtistDetailPage({ id, artists, events, songLibrary, authUser, profile,
     return matchesQuery && matchesStatus;
   });
   const averageEnergy = allSongs.length ? (allSongs.reduce((total, song) => total + Number(song.energyLevel || 0), 0) / allSongs.length).toFixed(1) : "0";
+
+  async function saveSong(event) {
+    event.preventDefault();
+    if (!songDraft?.title?.trim()) return setToast("Song title is required.");
+    const id = songDraft.id || `${artist.id}-${slugify(songDraft.title)}-${Date.now()}`;
+    await db.collection("songLibrary").doc(id).set({
+      id,
+      platformId: FRONTROW_PLATFORM_ID,
+      artistId: artist.id,
+      artistName: artist.name,
+      title: songDraft.title.trim(),
+      originalArtist: songDraft.originalArtist?.trim() || "",
+      duration: songDraft.duration?.trim() || "",
+      key: songDraft.key?.trim() || "",
+      leadVocal: songDraft.leadVocal?.trim() || "",
+      harmonyVocal: songDraft.harmonyVocal?.trim() || "",
+      genre: songDraft.genre?.trim() || "",
+      decade: songDraft.decade?.trim() || "",
+      energyLevel: Number(songDraft.energyLevel || 1),
+      status: songDraft.status || "Active",
+      notes: songDraft.notes?.trim() || "",
+      updatedAt: FieldValue.serverTimestamp(),
+      createdAt: songDraft.id ? songDraft.createdAt || FieldValue.serverTimestamp() : FieldValue.serverTimestamp(),
+    }, { merge: true });
+    setSongDraft(null);
+    setToast(songDraft.id ? "Song updated." : "Song added.");
+  }
+
+  async function duplicateSong(song) {
+    const id = `${artist.id}-${slugify(song.title)}-copy-${Date.now()}`;
+    await db.collection("songLibrary").doc(id).set({
+      ...song,
+      id,
+      title: `${song.title} Copy`,
+      status: song.status || "Active",
+      artistId: artist.id,
+      artistName: artist.name,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    setToast("Song duplicated.");
+  }
+
+  async function retireSong(song) {
+    await db.collection("songLibrary").doc(song.id).set({ status: "Retired", updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    setToast(`${song.title} moved to Retired.`);
+  }
+
+  function exportSongsCsv() {
+    const headers = ["Song", "Original Artist", "Duration", "Key", "Lead", "Harmony", "Genre", "Decade", "Energy", "Status", "Notes"];
+    const rows = allSongs.map((song) => [song.title, song.originalArtist, song.duration, song.key, song.leadVocal, song.harmonyVocal, song.genre, song.decade, song.energyLevel, song.status, song.notes]);
+    const csv = [headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${slugify(artist.name)}-song-library.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <section className="page artist-detail-page">
       <button className="text-link" onClick={() => navigate("#/artists")}>Back to artists</button>
@@ -853,12 +915,13 @@ function ArtistDetailPage({ id, artists, events, songLibrary, authUser, profile,
           <span><p className="section-kicker">Song Catalog</p><h2>Browse the artist archive</h2></span>
           <span className="song-library-summary">{allSongs.length} songs · {averageEnergy} avg energy</span>
         </summary>
-        <p className="muted compact">The song catalog supports future setlists, performance history, and fan archive browsing. Rewards and fan milestones remain the primary artist experience.</p>
         <div className="song-library-controls">
           <label>Search songs<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, original artist, genre..." /></label>
           <label>Status<select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option>All</option>{SONG_STATUSES.map((status) => <option key={status}>{status}</option>)}</select></label>
+          {canManageSongs && <div className="song-management-actions"><button className="primary-button" onClick={() => setSongDraft(blankSongDraft(artist))}><Plus size={18} />Add Song</button><button className="secondary-button" onClick={exportSongsCsv}><Download size={18} />Export CSV</button><button className="secondary-button" disabled title="CSV import coming soon"><Download size={18} />Import CSV</button></div>}
         </div>
-        <SongCatalogTable songs={visibleSongs} />
+        {songDraft && <SongEditorPanel songDraft={songDraft} setSongDraft={setSongDraft} saveSong={saveSong} />}
+        <SongCatalogTable songs={visibleSongs} canManageSongs={canManageSongs} onEdit={setSongDraft} onDuplicate={duplicateSong} onRetire={retireSong} />
         <div className="archive-note"><strong>Setlist Archive</strong><span>Coming later: searchable performances, setlists used, frequently played songs, and venue history.</span></div>
       </details>
     </section>
@@ -906,29 +969,57 @@ function ArtistFanEngagement({ artist, artistEvents, authUser, profile, follows,
   );
 }
 
-function SongCatalogTable({ songs }) {
+function SongEditorPanel({ songDraft, setSongDraft, saveSong }) {
+  const fields = [
+    ["title", "Song Title", true],
+    ["originalArtist", "Original Artist"],
+    ["duration", "Duration"],
+    ["key", "Key"],
+    ["leadVocal", "Lead Vocal"],
+    ["harmonyVocal", "Harmony Vocal"],
+    ["genre", "Genre"],
+    ["decade", "Decade"],
+  ];
+  return (
+    <form className="song-editor-panel" onSubmit={saveSong}>
+      <div className="home-section-heading"><span><p className="section-kicker">{songDraft.id ? "Edit Song" : "Add Song"}</p><h2>{songDraft.title || "New repertoire record"}</h2></span><button className="text-button" type="button" onClick={() => setSongDraft(null)}>Cancel</button></div>
+      <div className="song-editor-grid">
+        {fields.map(([field, label, required]) => <label key={field}>{label}<input value={songDraft[field] || ""} onChange={(event) => setSongDraft({ ...songDraft, [field]: event.target.value })} required={Boolean(required)} /></label>)}
+        <label>Energy Level<input type="number" min="1" max="5" value={songDraft.energyLevel || 1} onChange={(event) => setSongDraft({ ...songDraft, energyLevel: event.target.value })} /></label>
+        <label>Status<select value={songDraft.status || "Active"} onChange={(event) => setSongDraft({ ...songDraft, status: event.target.value })}>{SONG_STATUSES.map((status) => <option key={status}>{status}</option>)}</select></label>
+        <label className="song-editor-notes">Notes<textarea value={songDraft.notes || ""} onChange={(event) => setSongDraft({ ...songDraft, notes: event.target.value })} /></label>
+      </div>
+      <button className="primary-button full" type="submit"><Save size={18} />Save Song</button>
+    </form>
+  );
+}
+
+function SongCatalogTable({ songs, canManageSongs = false, onEdit, onDuplicate, onRetire }) {
   if (!songs.length) return <p className="muted">No songs match that search.</p>;
+  const headings = ["Song", "Key", "Lead", "Harmony", "Duration", "Status", "Original Artist", "Genre", "Decade", "Energy"];
+  if (canManageSongs) headings.push("Actions");
   return (
     <div className="song-table-wrap" role="region" aria-label="Song catalog table" tabIndex="0">
       <table className="song-table">
         <thead>
           <tr>
-            {["Song", "Original Artist", "Duration", "Key", "Lead", "Harmony", "Genre", "Decade", "Energy", "Status"].map((heading) => <th key={heading}>{heading}</th>)}
+            {headings.map((heading) => <th key={heading}>{heading}</th>)}
           </tr>
         </thead>
         <tbody>
           {songs.map((song) => (
             <tr key={song.id}>
               <td data-label="Song"><strong>{song.title}</strong></td>
-              <td data-label="Original Artist">{song.originalArtist || "TBD"}</td>
-              <td data-label="Duration">{song.duration || "TBD"}</td>
               <td data-label="Key">{song.key || "TBD"}</td>
               <td data-label="Lead">{song.leadVocal || "TBD"}</td>
               <td data-label="Harmony">{song.harmonyVocal || "TBD"}</td>
+              <td data-label="Duration">{song.duration || "TBD"}</td>
+              <td data-label="Status"><span className={classNames("status-pill", song.status === "Retired" && "muted-pill", song.status === "Learning" && "learning-pill")}>{song.status || "Active"}</span></td>
+              <td data-label="Original Artist">{song.originalArtist || "TBD"}</td>
               <td data-label="Genre">{song.genre || "TBD"}</td>
               <td data-label="Decade">{song.decade || "TBD"}</td>
               <td data-label="Energy">{song.energyLevel || 0}/5</td>
-              <td data-label="Status"><span className={classNames("status-pill", song.status === "Retired" && "muted-pill", song.status === "Learning" && "learning-pill")}>{song.status || "Active"}</span></td>
+              {canManageSongs && <td data-label="Actions"><div className="song-row-actions"><button className="admin-event-action" title="Edit song" aria-label={`Edit ${song.title}`} onClick={() => onEdit(song)}><Edit3 size={16} /><span>Edit</span></button><button className="admin-event-action" title="Duplicate song" aria-label={`Duplicate ${song.title}`} onClick={() => onDuplicate(song)}><ClipboardList size={16} /><span>Duplicate</span></button><button className="admin-event-action" title="Retire song" aria-label={`Retire ${song.title}`} disabled={song.status === "Retired"} onClick={() => onRetire(song)}><Lock size={16} /><span>Retire</span></button></div></td>}
             </tr>
           ))}
         </tbody>
@@ -941,6 +1032,29 @@ function songsForArtist(songLibrary, artistId) {
   return [...songLibrary]
     .filter((song) => (song.artistId || APP_CONFIG.primaryArtistId) === artistId)
     .sort((a, b) => String(a.title).localeCompare(String(b.title)));
+}
+
+function blankSongDraft(artist) {
+  return {
+    id: "",
+    artistId: artist.id,
+    artistName: artist.name,
+    title: "",
+    originalArtist: "",
+    duration: "",
+    key: "",
+    leadVocal: "",
+    harmonyVocal: "",
+    genre: "",
+    decade: "",
+    energyLevel: 3,
+    status: "Active",
+    notes: "",
+  };
+}
+
+function csvCell(value) {
+  return `"${String(value ?? "").replace(/"/g, '""')}"`;
 }
 
 function VenuesPage({ venues, events, authUser, follows, setToast }) {

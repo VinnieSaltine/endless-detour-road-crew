@@ -672,6 +672,31 @@ a {
   gap: 10px;
 }
 
+.song-management-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.song-editor-panel {
+  display: grid;
+  gap: 13px;
+  margin-top: 14px;
+  padding: 13px;
+  border: 1px solid rgba(242, 211, 79, 0.28);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.26);
+}
+
+.song-editor-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.song-editor-notes {
+  grid-column: 1 / -1;
+}
+
 .song-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--line);
@@ -682,7 +707,7 @@ a {
 
 .song-table {
   width: 100%;
-  min-width: 920px;
+  min-width: 1040px;
   border-collapse: collapse;
   font-size: 0.82rem;
 }
@@ -739,6 +764,22 @@ a {
   margin-bottom: 0;
   padding: 3px 7px;
   font-size: 0.62rem;
+}
+
+.song-row-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.song-row-actions .admin-event-action {
+  padding: 7px 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.song-row-actions .admin-event-action:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
 }
 
 .archive-note {
