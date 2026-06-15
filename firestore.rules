@@ -172,9 +172,12 @@ service cloud.firestore {
 
     match /songLibrary/{songId} {
       allow read: if true;
-      allow write: if signedIn()
-        && request.resource.data.artistId is string
-        && canManageArtist(request.resource.data.artistId);
+      allow write: if isAdmin()
+        || (
+          signedIn()
+          && request.resource.data.artistId is string
+          && canManageArtist(request.resource.data.artistId)
+        );
     }
 
     match /venues/{venueId} {
