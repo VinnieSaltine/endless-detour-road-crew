@@ -93,6 +93,7 @@ const seedArtists = [
 ];
 
 const SONG_STATUSES = ["Active", "Learning", "Retired"];
+const SONG_CSV_HEADERS = ["Song Title", "Original Artist", "Duration", "Key", "Lead Vocal", "Harmony Vocal", "Genre", "Decade", "Energy Level", "Status", "Notes"];
 
 const seedSongLibrary = [
   songSeed("endless-detour-hey-jealousy", "Hey Jealousy", "Gin Blossoms", "3:56", "D", "Matt", "Band", "Alternative Rock", "1990s", 4, "Active", "Bright mid-set singalong."),
@@ -810,6 +811,8 @@ function ArtistDetailPage({ id, artists, events, songLibrary, authUser, profile,
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [songDraft, setSongDraft] = useState(null);
+  const [songImport, setSongImport] = useState(null);
+  const [overwriteDuplicates, setOverwriteDuplicates] = useState(false);
   const artist = artists.find((item) => item.id === id);
   if (!artist) return <EmptyState title="Artist not found" body="That artist is not available in FrontRow yet." />;
   const canManageSongs = Boolean(profile?.isAdmin);
@@ -872,15 +875,51 @@ function ArtistDetailPage({ id, artists, events, songLibrary, authUser, profile,
   }
 
   function exportSongsCsv() {
-    const headers = ["Song", "Original Artist", "Duration", "Key", "Lead", "Harmony", "Genre", "Decade", "Energy", "Status", "Notes"];
     const rows = allSongs.map((song) => [song.title, song.originalArtist, song.duration, song.key, song.leadVocal, song.harmonyVocal, song.genre, song.decade, song.energyLevel, song.status, song.notes]);
-    const csv = [headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\n");
-    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${slugify(artist.name)}-song-library.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    downloadCsv(`${slugify(artist.name)}-song-library.csv`, [SONG_CSV_HEADERS, ...rows]);
+  }
+
+  function downloadSongTemplate() {
+    downloadCsv(`${slugify(artist.name)}-song-library-template.csv`, [SONG_CSV_HEADERS, ["Hey Jealousy", "Gin Blossoms", "3:56", "D", "Matt", "Band", "Alternative Rock", "1990s", "4", "Active", "Bright mid-set singalong."]]);
+  }
+
+  async function previewSongImport(event) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = buildSongImportPreview(text, allSongs);
+      setSongImport(parsed);
+      setOverwriteDuplicates(false);
+      setToast(parsed.headerError ? "CSV headers do not match the required template." : `Preview ready: ${parsed.validRows.length} valid rows.`);
+    } catch (error) {
+      setSongImport({ headerError: error.message, rows: [], validRows: [], invalidRows: [], duplicateRows: [] });
+      setToast(error.message);
+    }
+  }
+
+  async function confirmSongImport() {
+    if (!songImport || songImport.headerError) return;
+    const rowsToSave = songImport.validRows.filter((row) => overwriteDuplicates || !row.duplicate);
+    if (!rowsToSave.length) return setToast("No importable rows selected.");
+    const batch = db.batch();
+    rowsToSave.forEach((row) => {
+      const id = row.existingId || `${artist.id}-${slugify(row.song.title)}-${Date.now()}-${row.rowNumber}`;
+      batch.set(db.collection("songLibrary").doc(id), {
+        id,
+        platformId: FRONTROW_PLATFORM_ID,
+        artistId: artist.id,
+        artistName: artist.name,
+        ...row.song,
+        updatedAt: FieldValue.serverTimestamp(),
+        ...(row.existingId ? {} : { createdAt: FieldValue.serverTimestamp() }),
+      }, { merge: true });
+    });
+    await batch.commit();
+    const skipped = songImport.validRows.filter((row) => row.duplicate && !overwriteDuplicates).length + songImport.invalidRows.length;
+    setToast(`Import complete: ${rowsToSave.length} saved, ${skipped} skipped, ${songImport.invalidRows.length} errors.`);
+    setSongImport({ ...songImport, imported: true, savedCount: rowsToSave.length, skippedCount: skipped });
   }
 
   return (
@@ -918,9 +957,10 @@ function ArtistDetailPage({ id, artists, events, songLibrary, authUser, profile,
         <div className="song-library-controls">
           <label>Search songs<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, original artist, genre..." /></label>
           <label>Status<select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option>All</option>{SONG_STATUSES.map((status) => <option key={status}>{status}</option>)}</select></label>
-          {canManageSongs && <div className="song-management-actions"><button className="primary-button" onClick={() => setSongDraft(blankSongDraft(artist))}><Plus size={18} />Add Song</button><button className="secondary-button" onClick={exportSongsCsv}><Download size={18} />Export CSV</button><button className="secondary-button" disabled title="CSV import coming soon"><Download size={18} />Import CSV</button></div>}
+          {canManageSongs && <div className="song-management-actions"><button className="primary-button" onClick={() => setSongDraft(blankSongDraft(artist))}><Plus size={18} />Add Song</button><button className="secondary-button" onClick={downloadSongTemplate}><Download size={18} />CSV Template</button><label className="secondary-button file-button"><Download size={18} />Import CSV<input type="file" accept=".csv,text/csv" onChange={previewSongImport} /></label><button className="secondary-button" onClick={exportSongsCsv}><Download size={18} />Export CSV</button></div>}
         </div>
         {songDraft && <SongEditorPanel songDraft={songDraft} setSongDraft={setSongDraft} saveSong={saveSong} />}
+        {canManageSongs && songImport && <SongImportPreview importState={songImport} overwriteDuplicates={overwriteDuplicates} setOverwriteDuplicates={setOverwriteDuplicates} confirmSongImport={confirmSongImport} clearImport={() => setSongImport(null)} />}
         <SongCatalogTable songs={visibleSongs} canManageSongs={canManageSongs} onEdit={setSongDraft} onDuplicate={duplicateSong} onRetire={retireSong} />
         <div className="archive-note"><strong>Setlist Archive</strong><span>Coming later: searchable performances, setlists used, frequently played songs, and venue history.</span></div>
       </details>
@@ -994,6 +1034,33 @@ function SongEditorPanel({ songDraft, setSongDraft, saveSong }) {
   );
 }
 
+function SongImportPreview({ importState, overwriteDuplicates, setOverwriteDuplicates, confirmSongImport, clearImport }) {
+  const validNew = importState.validRows.filter((row) => !row.duplicate).length;
+  const duplicates = importState.duplicateRows.length;
+  const importable = importState.validRows.filter((row) => overwriteDuplicates || !row.duplicate).length;
+  return (
+    <section className="song-import-panel">
+      <div className="home-section-heading"><span><p className="section-kicker">CSV Import Preview</p><h2>{importState.headerError ? "Template mismatch" : `${importable} rows ready to import`}</h2></span><button className="text-button" type="button" onClick={clearImport}>Close</button></div>
+      {importState.headerError ? <p className="error-text">{importState.headerError}</p> : (
+        <>
+          <div className="profile-stat-grid">
+            <ProfileStat label="New songs" value={validNew} />
+            <ProfileStat label="Duplicates" value={duplicates} />
+            <ProfileStat label="Invalid rows" value={importState.invalidRows.length} />
+            <ProfileStat label="Will save" value={importable} />
+          </div>
+          {duplicates > 0 && <label className="toggle-row"><span>Overwrite duplicate Song Title + Original Artist matches</span><input type="checkbox" checked={overwriteDuplicates} onChange={(event) => setOverwriteDuplicates(event.target.checked)} /></label>}
+          <div className="song-import-list">
+            {importState.rows.slice(0, 24).map((row) => <div key={row.rowNumber} className={classNames("song-import-row", row.errors.length && "invalid", row.duplicate && "duplicate")}><strong>Row {row.rowNumber}: {row.song?.title || "Untitled"}</strong><small>{row.errors.length ? row.errors.join(" · ") : row.duplicate ? "Duplicate found; skipped unless overwrite is checked." : "Ready to import."}</small></div>)}
+          </div>
+          {importState.rows.length > 24 && <p className="muted compact">Showing first 24 rows of {importState.rows.length}.</p>}
+          {importState.imported ? <p className="success-text">Import complete: {importState.savedCount} saved, {importState.skippedCount} skipped, {importState.invalidRows.length} errors.</p> : <button className="primary-button full" type="button" disabled={!importable} onClick={confirmSongImport}><Save size={18} />Confirm Import</button>}
+        </>
+      )}
+    </section>
+  );
+}
+
 function SongCatalogTable({ songs, canManageSongs = false, onEdit, onDuplicate, onRetire }) {
   if (!songs.length) return <p className="muted">No songs match that search.</p>;
   const headings = ["Song", "Key", "Lead", "Harmony", "Duration", "Status", "Original Artist", "Genre", "Decade", "Energy"];
@@ -1055,6 +1122,105 @@ function blankSongDraft(artist) {
 
 function csvCell(value) {
   return `"${String(value ?? "").replace(/"/g, '""')}"`;
+}
+
+function downloadCsv(filename, rows) {
+  const csv = rows.map((row) => row.map(csvCell).join(",")).join("\n");
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let cell = "";
+  let quoted = false;
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    const next = text[index + 1];
+    if (char === '"' && quoted && next === '"') {
+      cell += '"';
+      index += 1;
+    } else if (char === '"') {
+      quoted = !quoted;
+    } else if (char === "," && !quoted) {
+      row.push(cell);
+      cell = "";
+    } else if ((char === "\n" || char === "\r") && !quoted) {
+      if (char === "\r" && next === "\n") index += 1;
+      row.push(cell);
+      if (row.some((value) => value.trim())) rows.push(row);
+      row = [];
+      cell = "";
+    } else {
+      cell += char;
+    }
+  }
+  row.push(cell);
+  if (row.some((value) => value.trim())) rows.push(row);
+  return rows;
+}
+
+function buildSongImportPreview(text, existingSongs) {
+  const rows = parseCsv(text);
+  if (!rows.length) return { headerError: "CSV is empty.", rows: [], validRows: [], invalidRows: [], duplicateRows: [] };
+  const headers = rows[0].map((header) => header.trim());
+  const headerError = validateSongCsvHeaders(headers);
+  if (headerError) return { headerError, rows: [], validRows: [], invalidRows: [], duplicateRows: [] };
+  const headerIndex = Object.fromEntries(headers.map((header, index) => [header, index]));
+  const existingByKey = new Map(existingSongs.map((song) => [songDuplicateKey(song.title, song.originalArtist), song]));
+  const seenKeys = new Set();
+  const previewRows = rows.slice(1).map((values, index) => {
+    const data = Object.fromEntries(SONG_CSV_HEADERS.map((header) => [header, values[headerIndex[header]]?.trim() || ""]));
+    const energy = Number(data["Energy Level"] || 0);
+    const status = data.Status || "Active";
+    const song = {
+      title: data["Song Title"],
+      originalArtist: data["Original Artist"],
+      duration: data.Duration,
+      key: data.Key,
+      leadVocal: data["Lead Vocal"],
+      harmonyVocal: data["Harmony Vocal"],
+      genre: data.Genre,
+      decade: data.Decade,
+      energyLevel: energy,
+      status,
+      notes: data.Notes,
+    };
+    const errors = [];
+    if (!song.title) errors.push("Song Title is required");
+    if (song.energyLevel < 1 || song.energyLevel > 5 || !Number.isFinite(song.energyLevel)) errors.push("Energy Level must be 1-5");
+    if (!SONG_STATUSES.includes(song.status)) errors.push("Status must be Active, Learning, or Retired");
+    const key = songDuplicateKey(song.title, song.originalArtist);
+    const duplicateInCsv = seenKeys.has(key);
+    if (duplicateInCsv) errors.push("Duplicate Song Title + Original Artist in this CSV");
+    const duplicate = Boolean(existingByKey.has(key));
+    const existing = existingByKey.get(key);
+    if (key) seenKeys.add(key);
+    return { rowNumber: index + 2, song, errors, duplicate, existingId: existing?.id || "" };
+  });
+  return {
+    headerError: "",
+    rows: previewRows,
+    validRows: previewRows.filter((row) => !row.errors.length),
+    invalidRows: previewRows.filter((row) => row.errors.length),
+    duplicateRows: previewRows.filter((row) => row.duplicate && !row.errors.length),
+  };
+}
+
+function validateSongCsvHeaders(headers) {
+  const missing = SONG_CSV_HEADERS.filter((header) => !headers.includes(header));
+  const extra = headers.filter((header) => !SONG_CSV_HEADERS.includes(header));
+  if (missing.length || extra.length) return `Required headers: ${SONG_CSV_HEADERS.join(", ")}. Missing: ${missing.join(", ") || "none"}. Extra: ${extra.join(", ") || "none"}.`;
+  return "";
+}
+
+function songDuplicateKey(title, originalArtist) {
+  return `${String(title || "").trim().toLowerCase()}::${String(originalArtist || "").trim().toLowerCase()}`;
 }
 
 function VenuesPage({ venues, events, authUser, follows, setToast }) {

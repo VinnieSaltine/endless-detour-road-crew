@@ -678,6 +678,19 @@ a {
   gap: 8px;
 }
 
+.file-button {
+  cursor: pointer;
+}
+
+.file-button input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .song-editor-panel {
   display: grid;
   gap: 13px;
@@ -686,6 +699,59 @@ a {
   border: 1px solid rgba(242, 211, 79, 0.28);
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.26);
+}
+
+.song-import-panel {
+  display: grid;
+  gap: 13px;
+  margin-top: 14px;
+  padding: 13px;
+  border: 1px solid rgba(242, 211, 79, 0.28);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.24);
+}
+
+.song-import-list {
+  display: grid;
+  gap: 7px;
+  max-height: 260px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.song-import-row {
+  display: grid;
+  gap: 3px;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.song-import-row small {
+  color: var(--muted);
+}
+
+.song-import-row.invalid {
+  border-color: rgba(248, 113, 113, 0.45);
+}
+
+.song-import-row.duplicate {
+  border-color: rgba(242, 211, 79, 0.28);
+}
+
+.error-text,
+.success-text {
+  margin: 0;
+  font-weight: 800;
+}
+
+.error-text {
+  color: #fca5a5;
+}
+
+.success-text {
+  color: #86efac;
 }
 
 .song-editor-grid {
