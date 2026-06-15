@@ -833,7 +833,7 @@ function ArtistDetailPage({ id, artists, events, songLibrary, authUser, profile,
     event.preventDefault();
     if (!songDraft?.title?.trim()) return setToast("Song title is required.");
     const id = songDraft.id || `${artist.id}-${slugify(songDraft.title)}-${Date.now()}`;
-    await db.collection("songLibrary").doc(id).set({
+    const payload = {
       id,
       platformId: FRONTROW_PLATFORM_ID,
       artistId: artist.id,
@@ -851,14 +851,16 @@ function ArtistDetailPage({ id, artists, events, songLibrary, authUser, profile,
       notes: songDraft.notes?.trim() || "",
       updatedAt: FieldValue.serverTimestamp(),
       createdAt: songDraft.id ? songDraft.createdAt || FieldValue.serverTimestamp() : FieldValue.serverTimestamp(),
-    }, { merge: true });
+    };
+    await logSongLibraryWriteDebug({ authUser, profile, path: `songLibrary/${id}`, payload, operation: songDraft.id ? "manual_edit_song" : "manual_add_song" });
+    await db.collection("songLibrary").doc(id).set(payload, { merge: true });
     setSongDraft(null);
     setToast(songDraft.id ? "Song updated." : "Song added.");
   }
 
   async function duplicateSong(song) {
     const id = `${artist.id}-${slugify(song.title)}-copy-${Date.now()}`;
-    await db.collection("songLibrary").doc(id).set({
+    const payload = {
       ...song,
       id,
       title: `${song.title} Copy`,
@@ -867,12 +869,16 @@ function ArtistDetailPage({ id, artists, events, songLibrary, authUser, profile,
       artistName: artist.name,
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
-    });
+    };
+    await logSongLibraryWriteDebug({ authUser, profile, path: `songLibrary/${id}`, payload, operation: "duplicate_song" });
+    await db.collection("songLibrary").doc(id).set(payload);
     setToast("Song duplicated.");
   }
 
   async function retireSong(song) {
-    await db.collection("songLibrary").doc(song.id).set({ status: "Retired", updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    const payload = { artistId: song.artistId || artist.id, status: "Retired", updatedAt: FieldValue.serverTimestamp() };
+    await logSongLibraryWriteDebug({ authUser, profile, path: `songLibrary/${song.id}`, payload, operation: "retire_song" });
+    await db.collection("songLibrary").doc(song.id).set(payload, { merge: true });
     setToast(`${song.title} moved to Retired.`);
   }
 
@@ -907,9 +913,10 @@ function ArtistDetailPage({ id, artists, events, songLibrary, authUser, profile,
     if (!rowsToSave.length) return setToast("No importable rows selected.");
     try {
       const batch = db.batch();
+      const debugRows = [];
       rowsToSave.forEach((row) => {
         const id = row.existingId || `${artist.id}-${slugify(row.song.title)}-${Date.now()}-${row.rowNumber}`;
-        batch.set(db.collection("songLibrary").doc(id), {
+        const payload = {
           id,
           platformId: FRONTROW_PLATFORM_ID,
           artistId: artist.id,
@@ -917,8 +924,11 @@ function ArtistDetailPage({ id, artists, events, songLibrary, authUser, profile,
           ...row.song,
           updatedAt: FieldValue.serverTimestamp(),
           ...(row.existingId ? {} : { createdAt: FieldValue.serverTimestamp() }),
-        }, { merge: true });
+        };
+        debugRows.push({ path: `songLibrary/${id}`, artistId: payload.artistId, title: payload.title });
+        batch.set(db.collection("songLibrary").doc(id), payload, { merge: true });
       });
+      await logSongLibraryWriteDebug({ authUser, profile, path: debugRows[0]?.path || "songLibrary/{songId}", payload: { artistId: artist.id, importCount: rowsToSave.length, firstRow: debugRows[0] }, operation: "csv_import_song_batch" });
       await batch.commit();
       const skipped = songImport.validRows.filter((row) => row.duplicate && !overwriteDuplicates).length + songImport.invalidRows.length;
       setToast(`Import complete: ${rowsToSave.length} saved, ${skipped} skipped, ${songImport.invalidRows.length} errors.`);
@@ -1122,6 +1132,28 @@ function canManageArtistCatalog(profile, roleAssignments = [], artistId) {
       || assignment.scope === "platform"
     )
   ));
+}
+
+async function logSongLibraryWriteDebug({ authUser, profile, path, payload, operation }) {
+  let tokenAdmin = null;
+  try {
+    tokenAdmin = (await auth?.currentUser?.getIdTokenResult?.())?.claims?.admin ?? null;
+  } catch (error) {
+    tokenAdmin = `token read failed: ${error.message}`;
+  }
+  console.groupCollapsed(`[FrontRow SongLibrary Write] ${operation}`);
+  console.log("currentUser.uid", auth?.currentUser?.uid || authUser?.uid || null);
+  console.log("currentUser.email", auth?.currentUser?.email || authUser?.email || null);
+  console.log("firebaseConfig.projectId", window.firebaseConfig?.projectId || null);
+  console.log("firebaseApp.projectId", firebaseApp?.options?.projectId || null);
+  console.log("hostname", window.location.hostname);
+  console.log("target Firestore path", path);
+  console.log("payload.artistId", payload?.artistId || null);
+  console.log("profile.id", profile?.id || null);
+  console.log("profile.isAdmin", profile?.isAdmin, `type=${typeof profile?.isAdmin}`);
+  console.log("auth token admin claim", tokenAdmin, `type=${typeof tokenAdmin}`);
+  console.log("payload preview", payload);
+  console.groupEnd();
 }
 
 function blankSongDraft(artist) {
