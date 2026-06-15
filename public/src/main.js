@@ -806,7 +806,7 @@ function ArtistsPage({ artists, events, songLibrary, authUser, follows, setToast
   );
 }
 
-function ArtistDetailPage({ id, artists, events, songLibrary, authUser, follows, setToast }) {
+function ArtistDetailPage({ id, artists, events, songLibrary, authUser, profile, follows, rewards, checkIns, setToast }) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const artist = artists.find((item) => item.id === id);
@@ -837,27 +837,71 @@ function ArtistDetailPage({ id, artists, events, songLibrary, authUser, follows,
           </div>
           <div className="button-row">
             <FollowButton authUser={authUser} follows={follows} entityType="artist" entity={artist} setToast={setToast} />
+            <button className="secondary-button" onClick={() => navigate("#/tips")}><Gift size={18} />Tip Artist</button>
+            <button className="secondary-button" onClick={() => navigate(authUser ? "#/earn" : "#/auth")}><Star size={18} />Claim Milemarkers</button>
             {artist.website && <a className="secondary-button" href={artist.website} target="_blank" rel="noreferrer"><ExternalLink size={18} />Website</a>}
           </div>
         </div>
       </section>
-      <section className="panel">
-        <p className="section-kicker">Artist architecture</p>
-        <h2>Song Library → Setlists → Performances → Fan Archive</h2>
-        <p className="muted">This Phase 1 catalog is the foundation for future setlist building, performance history, and public concert archive browsing.</p>
-      </section>
+      <ArtistFanEngagement artist={artist} artistEvents={artistEvents} authUser={authUser} profile={profile} follows={follows} rewards={rewards} checkIns={checkIns} />
       <section className="panel">
         <div className="home-section-heading"><h2>Upcoming Shows</h2><button className="text-button" onClick={() => navigate("#/events")}>All events</button></div>
         {upcomingEvents.length ? <div className="home-event-grid">{upcomingEvents.map((event) => <HomeEventCard key={event.id} event={event} />)}</div> : <p className="muted">No upcoming shows listed for this artist yet.</p>}
       </section>
-      <section className="panel song-library-panel">
-        <div className="home-section-heading"><span><p className="section-kicker">Song Library</p><h2>Catalog</h2></span><span className="song-library-summary">{allSongs.length} songs · {averageEnergy} avg energy</span></div>
+      <details className="panel song-library-panel song-catalog-accordion">
+        <summary>
+          <span><p className="section-kicker">Song Catalog</p><h2>Browse the artist archive</h2></span>
+          <span className="song-library-summary">{allSongs.length} songs · {averageEnergy} avg energy</span>
+        </summary>
+        <p className="muted compact">The song catalog supports future setlists, performance history, and fan archive browsing. Rewards and fan milestones remain the primary artist experience.</p>
         <div className="song-library-controls">
           <label>Search songs<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, original artist, genre..." /></label>
           <label>Status<select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option>All</option>{SONG_STATUSES.map((status) => <option key={status}>{status}</option>)}</select></label>
         </div>
         <div className="song-card-list">{visibleSongs.length ? visibleSongs.map((song) => <SongCard key={song.id} song={song} />) : <p className="muted">No songs match that search.</p>}</div>
-      </section>
+        <div className="archive-note"><strong>Setlist Archive</strong><span>Coming later: searchable performances, setlists used, frequently played songs, and venue history.</span></div>
+      </details>
+    </section>
+  );
+}
+
+function ArtistFanEngagement({ artist, artistEvents, authUser, profile, follows, rewards, checkIns }) {
+  const milemarkers = profile ? cumulativePoints(profile) : 0;
+  const currentStatus = statusForMilemarkers(milemarkers);
+  const upcomingStatus = nextStatus(milemarkers);
+  const myClaims = rewards.filter((claim) => claim.userId === profile?.id);
+  const upcomingReward = nextAvailableReward(milemarkers, myClaims);
+  const artistEventIds = new Set(artistEvents.map((event) => event.id));
+  const artistCheckIns = checkIns.filter((item) => item.userId === authUser?.uid && (item.artistId === artist.id || artistEventIds.has(item.eventId)));
+  const following = follows.some((item) => item.entityType === "artist" && item.entityId === artist.id);
+  const milestones = [
+    { name: "Follow Artist", detail: `Follow ${artist.name} on FrontRow.`, earned: following },
+    { name: "First Show Check-In", detail: `Check in at a ${artist.name} show.`, earned: artistCheckIns.length > 0 },
+    { name: "Roadie Status", detail: "Reach 150 Milemarkers.", earned: milemarkers >= 150 },
+    { name: "Crew Member Status", detail: "Reach 300 Milemarkers.", earned: milemarkers >= 300 },
+  ];
+  return (
+    <section className="artist-fan-engagement">
+      <div className="artist-rewards-card">
+        <p className="section-kicker">{artist.name} Road Crew</p>
+        <h2>Rewards, status, and fan milestones</h2>
+        <p className="muted">Earn Milemarkers by following artists, checking in at shows, requesting songs, voting in polls, and supporting the scene.</p>
+        {profile ? <MilemarkerStatusProgress profile={profile} rewards={rewards} /> : <button className="primary-button full" onClick={() => navigate("#/auth")}><Lock size={18} />Join FrontRow to earn rewards</button>}
+      </div>
+      <div className="artist-milestone-card">
+        <div className="profile-stat-grid">
+          <ProfileStat label="Current status" value={profile ? currentStatus.name : "Guest"} />
+          <ProfileStat label="Milemarkers" value={profile ? milemarkers : 0} />
+          <ProfileStat label="Artist check-ins" value={artistCheckIns.length} />
+          <ProfileStat label="Next status" value={upcomingStatus?.name || "Maxed"} />
+        </div>
+        <div className="next-available-reward compact"><small>Next reward</small><strong>{upcomingReward ? `${upcomingReward.name} at ${upcomingReward.requiredMilemarkers} Milemarkers` : "Current catalog complete"}</strong></div>
+        <div className="artist-milestone-list">{milestones.map((milestone) => <div key={milestone.name} className={classNames("artist-milestone", milestone.earned && "earned")}><Star size={18} /><span><strong>{milestone.name}</strong><small>{milestone.earned ? "Unlocked" : milestone.detail}</small></span></div>)}</div>
+        <div className="button-row">
+          <button className="primary-button" onClick={() => navigate("#/rewards")}><Gift size={18} />View Rewards</button>
+          <button className="secondary-button" onClick={() => navigate("#/earn")}><Star size={18} />How to Earn</button>
+        </div>
+      </div>
     </section>
   );
 }

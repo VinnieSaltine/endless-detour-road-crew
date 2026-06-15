@@ -536,6 +536,72 @@ a {
   height: 96px;
 }
 
+.artist-fan-engagement {
+  display: grid;
+  gap: 12px;
+}
+
+.artist-rewards-card,
+.artist-milestone-card {
+  display: grid;
+  gap: 13px;
+  padding: 15px;
+  border: 1px solid rgba(242, 211, 79, 0.28);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(242, 211, 79, 0.12), rgba(21, 21, 23, 0.94) 42%),
+    rgba(21, 21, 23, 0.94);
+}
+
+.artist-rewards-card h2,
+.artist-rewards-card p {
+  margin: 0;
+}
+
+.artist-rewards-card .next-reward-card {
+  margin: 0;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.artist-milestone-list {
+  display: grid;
+  gap: 8px;
+}
+
+.artist-milestone {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 9px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--muted);
+}
+
+.artist-milestone.earned {
+  border-color: rgba(242, 211, 79, 0.34);
+  color: var(--text);
+  background: rgba(242, 211, 79, 0.08);
+}
+
+.artist-milestone svg {
+  color: var(--accent);
+}
+
+.artist-milestone span,
+.artist-milestone strong,
+.artist-milestone small {
+  display: block;
+}
+
+.artist-milestone small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
 .artist-meta-grid,
 .song-stat-grid {
   display: grid;
@@ -546,6 +612,53 @@ a {
 
 .song-library-panel {
   gap: 14px;
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(15, 15, 17, 0.76);
+}
+
+.song-catalog-accordion {
+  display: block;
+}
+
+.song-catalog-accordion summary {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  align-items: center;
+  cursor: pointer;
+  list-style: none;
+}
+
+.song-catalog-accordion summary::-webkit-details-marker {
+  display: none;
+}
+
+.song-catalog-accordion summary::after {
+  content: "Open Song Catalog";
+  justify-self: start;
+  padding: 8px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--accent);
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.song-catalog-accordion[open] summary {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.song-catalog-accordion[open] summary::after {
+  content: "Hide Song Catalog";
+}
+
+.song-catalog-accordion > p,
+.song-catalog-accordion .song-library-controls,
+.song-catalog-accordion .song-card-list,
+.song-catalog-accordion .archive-note {
+  margin-top: 14px;
 }
 
 .song-library-summary {
@@ -617,6 +730,20 @@ a {
   padding-top: 10px;
   border-top: 1px solid var(--line);
   font-size: 0.9rem;
+}
+
+.archive-note {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px dashed rgba(242, 211, 79, 0.28);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.archive-note strong {
+  color: var(--text);
 }
 
 .road-crew-intro {
