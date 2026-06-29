@@ -1,0 +1,24 @@
+{
+  "name": "Endless Detour Road Crew",
+  "short_name": "Road Crew",
+  "description": "Fan engagement app for Endless Detour shows, rewards, song requests, and announcements.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/endless-detour-icon-192.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/endless-detour-icon-512.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}
